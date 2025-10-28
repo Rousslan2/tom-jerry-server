@@ -1076,8 +1076,17 @@ export class GameScene extends Phaser.Scene {
     // 🎯 Get current level target types from random targets!
     const targetTypes = this.levelTargets.map(t => t.type)
     
-    // Fill first filledPositions positions
-    for (let i = 0; i < filledPositions; i++) {
+    // 🎲 GUARANTEE AT LEAST ONE MATCH-3 COMBO!
+    // Place first 3 items of the same type close to each other
+    let guaranteedItemType = targetTypes[Phaser.Math.Between(0, targetTypes.length - 1)]
+    
+    for (let i = 0; i < Math.min(3, allPositions.length); i++) {
+      const pos = allPositions[i]
+      this.addItemToSlot(pos.row, pos.col, guaranteedItemType, pos.position)
+    }
+    
+    // Fill remaining positions
+    for (let i = 3; i < filledPositions; i++) {
       const pos = allPositions[i]
       let itemType
       
@@ -1091,6 +1100,9 @@ export class GameScene extends Phaser.Scene {
       
       this.addItemToSlot(pos.row, pos.col, itemType, pos.position)
     }
+    
+    // 🔍 Start the no-moves detection system
+    this.startNoMovesDetection()
   }
 
   getRandomItemType() {
@@ -1538,6 +1550,195 @@ export class GameScene extends Phaser.Scene {
     })
   }
   
+  // 🔍 Start no-moves detection system
+  startNoMovesDetection() {
+    // Check every 5 seconds if player has possible moves
+    this.noMovesTimer = this.time.addEvent({
+      delay: 5000,
+      callback: () => {
+        this.checkForPossibleMoves()
+      },
+      loop: true
+    })
+  }
+  
+  // 🔍 Check if there are any possible match-3 combos
+  checkForPossibleMoves() {
+    // Don't check if game is over
+    if (this.gameOver || this.levelComplete) {
+      return
+    }
+    
+    // Count items by type across all grid
+    const itemCounts = {}
+    
+    this.gridSlots.forEach((row, rowIndex) => {
+      row.forEach((slot, colIndex) => {
+        const gridCell = this.gridData[rowIndex][colIndex]
+        if (gridCell && gridCell.items) {
+          gridCell.items.forEach((item) => {
+            const itemType = item.itemType
+            // Skip obstacles
+            if (itemType !== 'anvil_obstacle' && itemType !== 'safe_obstacle' && itemType !== 'piano_obstacle') {
+              itemCounts[itemType] = (itemCounts[itemType] || 0) + 1
+            }
+          })
+        }
+      })
+    })
+    
+    // Check if any item type has at least 3 items
+    let hasPossibleMatch = false
+    for (let itemType in itemCounts) {
+      if (itemCounts[itemType] >= 3) {
+        hasPossibleMatch = true
+        break
+      }
+    }
+    
+    // 🚨 NO POSSIBLE MOVES! Help the player!
+    if (!hasPossibleMatch) {
+      console.log('🚨 NO POSSIBLE MOVES DETECTED! Adding helpful items...')
+      this.addHelpfulItems()
+    }
+  }
+  
+  // 🆘 Add helpful items when player is stuck
+  addHelpfulItems() {
+    // Get target types
+    const targetTypes = this.levelTargets.map(t => t.type)
+    const helpItemType = targetTypes[Phaser.Math.Between(0, targetTypes.length - 1)]
+    
+    // Find 3 empty positions
+    const rows = gameConfig.gridRows.value
+    const cols = gameConfig.gridCols.value
+    
+    const emptyPositions = []
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const gridCell = this.gridData[row][col]
+        for (let posIndex = 0; posIndex < 3; posIndex++) {
+          if (gridCell.positions[posIndex] === null) {
+            emptyPositions.push({ row, col, posIndex })
+          }
+        }
+      }
+    }
+    
+    // Shuffle and take first 3
+    Phaser.Utils.Array.Shuffle(emptyPositions)
+    const positionsToFill = emptyPositions.slice(0, 3)
+    
+    // Add 3 items of the same type with special effect
+    positionsToFill.forEach((pos, index) => {
+      this.time.delayedCall(index * 200, () => {
+        const slot = this.gridSlots[pos.row][pos.col]
+        const gridCell = this.gridData[pos.row][pos.col]
+        
+        // Create item with GOLDEN GLOW effect
+        const item = this.add.image(slot.x, -100, helpItemType)
+          .setScale(0)
+          .setAlpha(0)
+        
+        item.setInteractive({ draggable: true })
+        this.applyTomJerryItemEnhancement(item)
+        
+        const offset = slot.positionOffsets[pos.posIndex]
+        item.setDepth(100 + pos.posIndex)
+        this.applyHighQualityRendering(item)
+        
+        // ✨ SPECIAL GOLDEN GLOW for helpful items!
+        item.setTint(0xFFD700) // Golden color
+        
+        // Fall from sky with sparkles
+        this.tweens.add({
+          targets: item,
+          y: slot.y + offset.y,
+          x: slot.x + offset.x,
+          scale: 0.075,
+          alpha: 1,
+          duration: 600,
+          ease: 'Back.easeOut',
+          onComplete: () => {
+            // Flash effect
+            this.tweens.add({
+              targets: item,
+              alpha: 0.5,
+              duration: 200,
+              yoyo: true,
+              repeat: 3,
+              onComplete: () => {
+                item.clearTint() // Remove golden tint after flash
+              }
+            })
+          }
+        })
+        
+        // Store item information
+        item.itemType = helpItemType
+        item.gridRow = pos.row
+        item.gridCol = pos.col
+        item.positionIndex = pos.posIndex
+        
+        // Update data structure
+        gridCell.positions[pos.posIndex] = helpItemType
+        gridCell.items.push(item)
+        
+        this.updatePositionIndicator(pos.row, pos.col, pos.posIndex, helpItemType)
+      })
+    })
+    
+    // Show helpful message
+    this.showHelpMessage("✨ TOM HELPED YOU! ✨")
+    
+    // Play helpful sound
+    this.sound.play('item_pickup', { volume: audioConfig.sfxVolume.value })
+  }
+  
+  // 💬 Show helpful message to player
+  showHelpMessage(message) {
+    const screenWidth = this.cameras.main.width
+    const screenHeight = this.cameras.main.height
+    
+    const helpText = this.add.text(screenWidth / 2, screenHeight / 2, message, {
+      fontSize: `${window.getResponsiveFontSize(28)}px`,
+      fontFamily: window.getGameFont(),
+      color: '#FFD700',
+      stroke: '#000000',
+      strokeThickness: 6,
+      align: 'center',
+      fontStyle: 'bold'
+    }).setOrigin(0.5, 0.5)
+      .setDepth(10001)
+      .setAlpha(0)
+      .setScale(0)
+    
+    // Pop in
+    this.tweens.add({
+      targets: helpText,
+      alpha: 1,
+      scale: 1.2,
+      duration: 300,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        // Stay for 2 seconds
+        this.time.delayedCall(2000, () => {
+          // Fade out
+          this.tweens.add({
+            targets: helpText,
+            alpha: 0,
+            scale: 0.5,
+            duration: 300,
+            ease: 'Back.easeIn',
+            onComplete: () => {
+              helpText.destroy()
+            }
+          })
+        })
+      }
+    })
+  }
+  
   // 🎬 Create impact effect when obstacle lands
   createObstacleImpactEffect(x, y) {
     // Play impact sound
@@ -1651,6 +1852,11 @@ export class GameScene extends Phaser.Scene {
       // Increase move counter
       this.currentMoves++
       this.updateMoveCounter()
+      
+      // 🔍 CRITICAL: Check ALL cells for matches after placement
+      this.time.delayedCall(100, () => {
+        this.checkAllCellsForMatches()
+      })
       
       // 🔄 Check for deadlock ONLY every 5 moves (not every move!)
       if (this.currentMoves % 5 === 0) {
@@ -1785,17 +1991,94 @@ export class GameScene extends Phaser.Scene {
 
   // Highlight available slot positions
   highlightAvailableSlots() {
-    // Remove highlight effect, keep original style
+    // Clear any existing highlights first
+    this.clearSlotHighlights()
+    
+    const rows = gameConfig.gridRows.value
+    const cols = gameConfig.gridCols.value
+    
+    // Create highlights for slots with at least one empty position
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const gridCell = this.gridData[row][col]
+        const hasEmptyPosition = gridCell.positions.some(pos => pos === null)
+        
+        if (hasEmptyPosition) {
+          // Green glow for available slots
+          const slot = this.gridSlots[row][col]
+          const highlight = this.add.graphics()
+          highlight.lineStyle(4, 0x00FF00, 0.8)
+          highlight.strokeRoundedRect(
+            slot.x - slot.width / 2,
+            slot.y - slot.height / 2,
+            slot.width,
+            slot.height,
+            8
+          )
+          highlight.setDepth(45)
+          
+          // Pulse animation
+          this.tweens.add({
+            targets: highlight,
+            alpha: 0.3,
+            duration: 500,
+            ease: 'Sine.easeInOut',
+            yoyo: true,
+            repeat: -1
+          })
+          
+          if (!this.slotHighlights) {
+            this.slotHighlights = []
+          }
+          this.slotHighlights.push(highlight)
+        } else {
+          // Red X for full slots
+          const slot = this.gridSlots[row][col]
+          const redX = this.add.graphics()
+          redX.lineStyle(6, 0xFF0000, 0.9)
+          
+          // Draw X
+          const size = Math.min(slot.width, slot.height) * 0.3
+          redX.strokeLineShape(new Phaser.Geom.Line(
+            slot.x - size, slot.y - size,
+            slot.x + size, slot.y + size
+          ))
+          redX.strokeLineShape(new Phaser.Geom.Line(
+            slot.x + size, slot.y - size,
+            slot.x - size, slot.y + size
+          ))
+          redX.setDepth(45)
+          
+          if (!this.slotHighlights) {
+            this.slotHighlights = []
+          }
+          this.slotHighlights.push(redX)
+        }
+      }
+    }
   }
 
   // Clear slot highlights
   clearSlotHighlights() {
-    // Remove highlight effect, keep original style
+    if (this.slotHighlights) {
+      this.slotHighlights.forEach(highlight => {
+        this.tweens.killTweensOf(highlight)
+        highlight.destroy()
+      })
+      this.slotHighlights = []
+    }
   }
 
   checkForElimination(row, col) {
     const gridCell = this.gridData[row][col]
     const positions = gridCell.positions
+    
+    // Double-check: ensure gridCell and items are in sync
+    if (gridCell.items.length !== positions.filter(p => p !== null).length) {
+      console.warn(`⚠️ Mismatch detected at (${row},${col}): items=${gridCell.items.length}, positions=${positions.filter(p => p !== null).length}`)
+      // Resync: rebuild positions from actual items
+      this.resyncGridCell(row, col)
+    }
     
     // Check if all three positions have items
     const allPositionsFilled = positions.every(pos => pos !== null)
@@ -1806,14 +2089,82 @@ export class GameScene extends Phaser.Scene {
       const allSameType = positions.every(pos => pos === firstItemType)
       
       if (allSameType) {
+        console.log(`✅ Match found at (${row},${col}): 3x ${firstItemType}`)
         this.eliminateItems(row, col, firstItemType)
       }
+    }
+  }
+  
+  // Resync grid cell data with actual items
+  resyncGridCell(row, col) {
+    const gridCell = this.gridData[row][col]
+    
+    // Clear positions array
+    gridCell.positions = [null, null, null]
+    
+    // Rebuild from actual items
+    gridCell.items.forEach((item, index) => {
+      if (item && item.active) {
+        const posIndex = item.positionIndex
+        if (posIndex >= 0 && posIndex < 3) {
+          gridCell.positions[posIndex] = item.itemType
+        }
+      }
+    })
+    
+    console.log(`🔄 Resynced (${row},${col}): ${gridCell.positions}`)
+  }
+  
+  // Check ALL cells for matches (global scan)
+  checkAllCellsForMatches() {
+    const rows = gameConfig.gridRows.value
+    const cols = gameConfig.gridCols.value
+    
+    let matchesFound = 0
+    
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const gridCell = this.gridData[row][col]
+        const positions = gridCell.positions
+        
+        // Skip if not all positions filled
+        if (!positions.every(pos => pos !== null)) {
+          continue
+        }
+        
+        // Check if all same type
+        const firstItemType = positions[0]
+        const allSameType = positions.every(pos => pos === firstItemType)
+        
+        if (allSameType) {
+          matchesFound++
+          console.log(`🎯 Global scan found match at (${row},${col}): 3x ${firstItemType}`)
+          
+          // Delay elimination slightly to stagger multiple matches
+          this.time.delayedCall(matchesFound * 200, () => {
+            this.eliminateItems(row, col, firstItemType)
+          })
+        }
+      }
+    }
+    
+    if (matchesFound > 0) {
+      console.log(`✅ Global scan complete: ${matchesFound} match(es) found`)
     }
   }
 
   eliminateItems(row, col, itemType) {
     const gridCell = this.gridData[row][col]
     const slot = this.gridSlots[row][col]
+    
+    // 🛡️ PREVENT DOUBLE ELIMINATION - Check if already eliminating
+    if (gridCell.isEliminating) {
+      console.log(`⚠️ Skip (${row},${col}) - Already eliminating!`)
+      return
+    }
+    
+    // Mark as eliminating
+    gridCell.isEliminating = true
     
     // ⭐ NEW: Combo system logic
     const currentTime = this.time.now
@@ -1863,7 +2214,14 @@ export class GameScene extends Phaser.Scene {
     })
     
     // Update elimination count
-    this.eliminatedCounts[itemType] += gameConfig.maxItemsPerSlot.value
+    const amountToAdd = gameConfig.maxItemsPerSlot.value
+    const oldCount = this.eliminatedCounts[itemType] || 0
+    this.eliminatedCounts[itemType] = oldCount + amountToAdd
+    const newCount = this.eliminatedCounts[itemType]
+    
+    console.log(`📊 Eliminated ${itemType}: ${oldCount} → ${newCount} (+${amountToAdd})`)
+    console.log(`📊 All counts:`, JSON.stringify(this.eliminatedCounts, null, 2))
+    
     this.updateTargetDisplay()
     
     // Send updated stats to opponent in online mode
@@ -1911,6 +2269,11 @@ export class GameScene extends Phaser.Scene {
     
     // 🚧 Check adjacent slots for obstacles to unlock
     this.unlockAdjacentObstacles(row, col)
+    
+    // 🛡️ Reset eliminating flag after a short delay
+    this.time.delayedCall(100, () => {
+      gridCell.isEliminating = false
+    })
     
     // Delay restock
     this.time.delayedCall(gameConfig.refillDelay.value, () => {
@@ -2951,6 +3314,12 @@ export class GameScene extends Phaser.Scene {
     if (this.tomEventTimer) {
       this.tomEventTimer.remove()
       this.tomEventTimer = null
+    }
+    
+    // 🔍 Stop no-moves detection timer
+    if (this.noMovesTimer) {
+      this.noMovesTimer.remove()
+      this.noMovesTimer = null
     }
     
     // Stop game music when leaving this scene
