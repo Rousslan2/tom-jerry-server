@@ -24,107 +24,212 @@ export class OnlineLobbyScene extends Phaser.Scene {
     const screenWidth = screenSize.width.value
     const screenHeight = screenSize.height.value
     
-    // Main background
+    // Modern gradient background - purple to blue
     const backgroundGraphics = this.add.graphics()
-    backgroundGraphics.fillStyle(0x6B8E8E, 1)
+    backgroundGraphics.fillGradientStyle(0x667EEA, 0x764BA2, 0x667EEA, 0x764BA2, 1)
     backgroundGraphics.fillRect(0, 0, screenWidth, screenHeight)
     backgroundGraphics.setDepth(-200)
     
-    // Decorative borders
-    const backgroundBorder = this.add.graphics()
-    backgroundBorder.lineStyle(6, 0x000000, 0.3)
-    backgroundBorder.strokeRoundedRect(20, 20, screenWidth - 40, screenHeight - 40, 15)
-    backgroundBorder.lineStyle(3, 0xFFFFFF, 0.4)
-    backgroundBorder.strokeRoundedRect(30, 30, screenWidth - 60, screenHeight - 60, 10)
-    backgroundBorder.setDepth(-150)
-    
-    // Add decorative dots
-    const backgroundOverlay = this.add.graphics()
-    backgroundOverlay.fillStyle(0xFFFFFF, 0.1)
-    for (let i = 0; i < 20; i++) {
-      const x = Phaser.Math.Between(50, screenWidth - 50)
-      const y = Phaser.Math.Between(50, screenHeight - 50)
-      backgroundOverlay.fillCircle(x, y, Phaser.Math.Between(3, 8))
+    // Animated floating circles decoration
+    for (let i = 0; i < 15; i++) {
+      const circle = this.add.circle(
+        Phaser.Math.Between(0, screenWidth),
+        Phaser.Math.Between(0, screenHeight),
+        Phaser.Math.Between(20, 60),
+        0xFFFFFF,
+        0.05
+      ).setDepth(-100)
+      
+      // Floating animation
+      this.tweens.add({
+        targets: circle,
+        y: circle.y + Phaser.Math.Between(-30, 30),
+        x: circle.x + Phaser.Math.Between(-20, 20),
+        alpha: Phaser.Math.Between(0.03, 0.1),
+        duration: Phaser.Math.Between(3000, 6000),
+        ease: 'Sine.easeInOut',
+        yoyo: true,
+        repeat: -1
+      })
     }
-    backgroundOverlay.setDepth(-50)
+    
+    // Subtle grid pattern
+    const gridGraphics = this.add.graphics()
+    gridGraphics.lineStyle(1, 0xFFFFFF, 0.05)
+    for (let x = 0; x < screenWidth; x += 40) {
+      gridGraphics.lineBetween(x, 0, x, screenHeight)
+    }
+    for (let y = 0; y < screenHeight; y += 40) {
+      gridGraphics.lineBetween(0, y, screenWidth, y)
+    }
+    gridGraphics.setDepth(-150)
   }
 
   createUI() {
     const screenWidth = screenSize.width.value
     const screenHeight = screenSize.height.value
     
-    // Title
-    this.titleText = this.add.text(screenWidth / 2, 80, '🌐 ONLINE MULTIPLAYER', {
-      fontSize: '36px',
+    // Modern Title Card with shadow
+    const titleCardBg = this.add.graphics()
+    titleCardBg.fillStyle(0x000000, 0.3)
+    titleCardBg.fillRoundedRect(screenWidth / 2 - 280, 50, 560, 100, 20)
+    titleCardBg.setDepth(98)
+    
+    const titleCard = this.add.graphics()
+    titleCard.fillGradientStyle(0xFF6B9D, 0xC371F4, 0xFF6B9D, 0xC371F4, 1)
+    titleCard.fillRoundedRect(screenWidth / 2 - 270, 45, 540, 90, 20)
+    titleCard.lineStyle(4, 0xFFFFFF, 0.5)
+    titleCard.strokeRoundedRect(screenWidth / 2 - 270, 45, 540, 90, 20)
+    titleCard.setDepth(99)
+    
+    // Title with glow effect
+    this.titleText = this.add.text(screenWidth / 2, 90, '🌐 ONLINE MULTIPLAYER', {
+      fontSize: '38px',
       fontFamily: window.getGameFont(),
       color: '#FFFFFF',
-      stroke: '#000000',
-      strokeThickness: 6,
+      stroke: '#4A148C',
+      strokeThickness: 5,
       align: 'center',
       fontStyle: 'bold'
     }).setOrigin(0.5, 0.5).setDepth(100)
     
-    // Connection status
-    this.statusText = this.add.text(screenWidth / 2, 140, 'Connecting to server...', {
-      fontSize: '18px',
+    // Pulsing title animation
+    this.tweens.add({
+      targets: this.titleText,
+      scale: 1.05,
+      duration: 1500,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1
+    })
+    
+    // Modern status badge
+    this.statusBg = this.add.graphics()
+    this.statusBg.setDepth(99)
+    
+    this.statusText = this.add.text(screenWidth / 2, 160, 'Connecting to server...', {
+      fontSize: '16px',
       fontFamily: window.getGameFont(),
       color: '#FFD700',
       stroke: '#000000',
       strokeThickness: 3,
-      align: 'center'
+      align: 'center',
+      fontStyle: 'bold'
     }).setOrigin(0.5, 0.5).setDepth(100)
     
+    this.updateStatusBadge('connecting')
+    
     // Panel container
-    const panelY = screenHeight / 2 + 20
+    const panelY = screenHeight / 2 + 40
     this.createOptionsPanel(panelY)
     
     // Back button
     this.createBackButton()
+  }
+  
+  updateStatusBadge(status) {
+    this.statusBg.clear()
+    
+    const screenWidth = screenSize.width.value
+    const bounds = this.statusText.getBounds()
+    const padding = 20
+    
+    let color = 0xFFA500 // Orange for connecting
+    if (status === 'online') color = 0x4CAF50 // Green
+    if (status === 'local') color = 0x9E9E9E // Gray
+    if (status === 'error') color = 0xF44336 // Red
+    
+    this.statusBg.fillStyle(color, 0.9)
+    this.statusBg.fillRoundedRect(
+      bounds.x - padding,
+      bounds.y - padding / 2,
+      bounds.width + padding * 2,
+      bounds.height + padding,
+      15
+    )
+    this.statusBg.lineStyle(2, 0xFFFFFF, 0.7)
+    this.statusBg.strokeRoundedRect(
+      bounds.x - padding,
+      bounds.y - padding / 2,
+      bounds.width + padding * 2,
+      bounds.height + padding,
+      15
+    )
   }
 
   createOptionsPanel(centerY) {
     const screenWidth = screenSize.width.value
     const centerX = screenWidth / 2
     
-    // Create Room Button
-    this.createRoomButton = this.createModernButton(
+    // Main panel card with modern design
+    const panelBg = this.add.graphics()
+    panelBg.fillStyle(0x000000, 0.3)
+    panelBg.fillRoundedRect(centerX - 205, centerY - 165, 410, 420, 25)
+    panelBg.setDepth(95)
+    
+    const panel = this.add.graphics()
+    panel.fillStyle(0xFFFFFF, 0.15)
+    panel.fillRoundedRect(centerX - 200, centerY - 160, 400, 410, 25)
+    panel.lineStyle(3, 0xFFFFFF, 0.4)
+    panel.strokeRoundedRect(centerX - 200, centerY - 160, 400, 410, 25)
+    panel.setDepth(96)
+    
+    // Create Room Button - Modern card style
+    this.createRoomButton = this.createGlassButton(
       centerX,
-      centerY - 100,
-      280,
-      55,
+      centerY - 95,
+      320,
+      65,
       '🎮 CREATE ROOM',
       () => this.onCreateRoom(),
-      0x32CD32
+      0x10B981 // Emerald green
     )
     this.createRoomButton.setAlpha(0.5) // Disabled initially
     
-    // Separator
-    this.add.text(centerX, centerY - 30, '- OR -', {
-      fontSize: '18px',
+    // Stylish separator with decorative lines
+    const separatorY = centerY - 25
+    const separatorLine1 = this.add.graphics()
+    separatorLine1.lineStyle(2, 0xFFFFFF, 0.3)
+    separatorLine1.lineBetween(centerX - 150, separatorY, centerX - 60, separatorY)
+    separatorLine1.setDepth(100)
+    
+    const separatorLine2 = this.add.graphics()
+    separatorLine2.lineStyle(2, 0xFFFFFF, 0.3)
+    separatorLine2.lineBetween(centerX + 60, separatorY, centerX + 150, separatorY)
+    separatorLine2.setDepth(100)
+    
+    this.add.text(centerX, separatorY, 'OR', {
+      fontSize: '16px',
       fontFamily: window.getGameFont(),
       color: '#FFFFFF',
-      stroke: '#000000',
+      stroke: '#4A148C',
       strokeThickness: 3,
       align: 'center',
       fontStyle: 'bold'
     }).setOrigin(0.5, 0.5).setDepth(100)
     
-    // Join Room Section
-    this.joinRoomLabel = this.add.text(centerX, centerY + 20, 'Enter Room Code:', {
+    // Join Room Section with modern styling
+    this.joinRoomLabel = this.add.text(centerX, centerY + 30, '🔑 Enter Room Code', {
       fontSize: '18px',
       fontFamily: window.getGameFont(),
       color: '#FFFFFF',
-      stroke: '#000000',
+      stroke: '#4A148C',
       strokeThickness: 3,
-      align: 'center'
+      align: 'center',
+      fontStyle: 'bold'
     }).setOrigin(0.5, 0.5).setDepth(100)
     
-    // Room code input box background (clickable)
+    // Modern input box with glow effect
+    const codeBoxShadow = this.add.graphics()
+    codeBoxShadow.fillStyle(0x000000, 0.4)
+    codeBoxShadow.fillRoundedRect(centerX - 128, centerY + 58, 256, 64, 15)
+    codeBoxShadow.setDepth(98)
+    
     const codeBoxBg = this.add.graphics()
-    codeBoxBg.fillStyle(0x2C3E50, 0.9)
-    codeBoxBg.fillRoundedRect(centerX - 100, centerY + 45, 200, 50, 10)
-    codeBoxBg.lineStyle(3, 0xFFD700, 1)
-    codeBoxBg.strokeRoundedRect(centerX - 100, centerY + 45, 200, 50, 10)
+    codeBoxBg.fillStyle(0x1E1E2E, 0.95)
+    codeBoxBg.fillRoundedRect(centerX - 125, centerY + 55, 250, 60, 15)
+    codeBoxBg.lineStyle(3, 0xC371F4, 1)
+    codeBoxBg.strokeRoundedRect(centerX - 125, centerY + 55, 250, 60, 15)
     codeBoxBg.setDepth(99)
     
     // Make it interactive for mobile only
@@ -132,7 +237,7 @@ export class OnlineLobbyScene extends Phaser.Scene {
     
     if (isMobile) {
       // Mobile: Add clickable zone for virtual keyboard
-      const inputZone = this.add.zone(centerX, centerY + 70, 200, 50).setInteractive()
+      const inputZone = this.add.zone(centerX, centerY + 85, 250, 60).setInteractive()
       inputZone.setDepth(100)
       
       // Click to open virtual keyboard on mobile
@@ -140,48 +245,50 @@ export class OnlineLobbyScene extends Phaser.Scene {
         this.openVirtualKeyboard()
       })
       
-      // Add visual hint for mobile users
-      this.add.text(centerX, centerY + 110, '👆 Tap to enter code', {
-        fontSize: '12px',
+      // Add visual hint for mobile users with icon
+      this.add.text(centerX, centerY + 130, '👆 Tap to enter code', {
+        fontSize: '13px',
         fontFamily: window.getGameFont(),
-        color: '#AAAAAA',
+        color: '#C371F4',
         stroke: '#000000',
         strokeThickness: 2,
-        align: 'center'
+        align: 'center',
+        fontStyle: 'bold'
       }).setOrigin(0.5, 0.5).setDepth(100)
     } else {
       // PC: Add keyboard hint
-      this.add.text(centerX, centerY + 110, '⌨️ Type with keyboard', {
-        fontSize: '12px',
+      this.add.text(centerX, centerY + 130, '⌨️ Type with keyboard', {
+        fontSize: '13px',
         fontFamily: window.getGameFont(),
-        color: '#AAAAAA',
+        color: '#C371F4',
         stroke: '#000000',
         strokeThickness: 2,
-        align: 'center'
+        align: 'center',
+        fontStyle: 'bold'
       }).setOrigin(0.5, 0.5).setDepth(100)
     }
     
-    // Room code display
-    this.roomCodeDisplay = this.add.text(centerX, centerY + 70, '____', {
-      fontSize: '28px',
+    // Room code display with modern font
+    this.roomCodeDisplay = this.add.text(centerX, centerY + 85, '____', {
+      fontSize: '32px',
       fontFamily: 'Courier New, monospace',
-      color: '#FFD700',
-      stroke: '#000000',
-      strokeThickness: 3,
+      color: '#FFFFFF',
+      stroke: '#C371F4',
+      strokeThickness: 4,
       align: 'center',
       fontStyle: 'bold',
-      letterSpacing: '8px'
+      letterSpacing: '12px'
     }).setOrigin(0.5, 0.5).setDepth(101)
     
-    // Join button
-    this.joinRoomButton = this.createModernButton(
+    // Join button - Modern glass style
+    this.joinRoomButton = this.createGlassButton(
       centerX,
-      centerY + 135,
-      280,
-      55,
+      centerY + 175,
+      320,
+      65,
       '🚪 JOIN ROOM',
       () => this.onJoinRoom(),
-      0x4169E1
+      0x6366F1 // Indigo
     )
     this.joinRoomButton.setAlpha(0.5) // Disabled initially
     
@@ -446,22 +553,36 @@ export class OnlineLobbyScene extends Phaser.Scene {
     }
   }
 
-  createModernButton(x, y, width, height, text, callback, color = 0x32CD32) {
+  createGlassButton(x, y, width, height, text, callback, color = 0x32CD32) {
+    // Shadow layer
+    const shadow = this.add.graphics()
+    shadow.fillStyle(0x000000, 0.4)
+    shadow.fillRoundedRect(x - width/2 + 4, y - height/2 + 4, width, height, 18)
+    shadow.setDepth(99)
+    
     // Create graphics for button
     const button = this.add.graphics()
     button.x = x
     button.y = y
     button.setDepth(100)
     
-    // Draw button background
-    button.fillStyle(color, 0.9)
-    button.fillRoundedRect(-width/2, -height/2, width, height, 12)
-    button.lineStyle(3, 0xFFFFFF, 0.9)
-    button.strokeRoundedRect(-width/2, -height/2, width, height, 12)
+    // Draw glassmorphism effect
+    button.fillStyle(color, 0.85)
+    button.fillRoundedRect(-width/2, -height/2, width, height, 18)
     
-    // Button text
+    // Gradient overlay for glass effect
+    const gradient = this.add.graphics()
+    gradient.fillGradientStyle(0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF, 0.2, 0.05, 0.2, 0.05)
+    gradient.fillRoundedRect(x - width/2, y - height/2, width, height, 18)
+    gradient.setDepth(100)
+    
+    // Border with glow
+    button.lineStyle(3, 0xFFFFFF, 0.6)
+    button.strokeRoundedRect(-width/2, -height/2, width, height, 18)
+    
+    // Button text with larger font
     const buttonText = this.add.text(x, y, text, {
-      fontSize: '18px',
+      fontSize: '20px',
       fontFamily: window.getGameFont(),
       color: '#FFFFFF',
       stroke: '#000000',
@@ -478,21 +599,51 @@ export class OnlineLobbyScene extends Phaser.Scene {
     
     // Store references
     button.buttonText = buttonText
+    button.buttonShadow = shadow
+    button.buttonGradient = gradient
     button.originalY = y
     button.originalColor = color
     
-    // Hover effects
+    // Enhanced hover effects with glow
     button.on('pointerover', () => {
       if (button.alpha < 1) return
-      button.setScale(1.03)
-      buttonText.setScale(1.03)
+      
+      this.tweens.add({
+        targets: [button, buttonText, gradient],
+        scaleX: 1.05,
+        scaleY: 1.05,
+        duration: 150,
+        ease: 'Back.easeOut'
+      })
+      
+      // Add glow effect
+      button.clear()
+      button.fillStyle(color, 0.85)
+      button.fillRoundedRect(-width/2, -height/2, width, height, 18)
+      button.lineStyle(4, 0xFFFFFF, 0.9)
+      button.strokeRoundedRect(-width/2, -height/2, width, height, 18)
+      
       buttonText.y = y - 2
     })
     
     button.on('pointerout', () => {
       if (button.alpha < 1) return
-      button.setScale(1)
-      buttonText.setScale(1)
+      
+      this.tweens.add({
+        targets: [button, buttonText, gradient],
+        scaleX: 1,
+        scaleY: 1,
+        duration: 150,
+        ease: 'Back.easeOut'
+      })
+      
+      // Remove glow
+      button.clear()
+      button.fillStyle(color, 0.85)
+      button.fillRoundedRect(-width/2, -height/2, width, height, 18)
+      button.lineStyle(3, 0xFFFFFF, 0.6)
+      button.strokeRoundedRect(-width/2, -height/2, width, height, 18)
+      
       buttonText.y = y
     })
     
@@ -517,19 +668,20 @@ export class OnlineLobbyScene extends Phaser.Scene {
     const screenWidth = screenSize.width.value
     const screenHeight = screenSize.height.value
     
-    this.backButton = this.createModernButton(
+    this.backButton = this.createGlassButton(
       screenWidth / 2,
       screenHeight - 50,
-      180,
-      45,
+      200,
+      50,
       '← BACK',
       () => this.goBack(),
-      0xFF6347
+      0xEF4444 // Red
     )
   }
 
   connectToServer() {
     this.statusText.setText('🌐 Connecting to online server...')
+    this.updateStatusBadge('connecting')
     this.statusText.setColor('#FFFFFF')
     
     // Try to connect to online server
@@ -542,14 +694,16 @@ export class OnlineLobbyScene extends Phaser.Scene {
           if (isOnline) {
             // Successfully connected to ONLINE server!
             this.statusText.setText('✅ ONLINE MODE - Play from anywhere! 🌍')
-            this.statusText.setColor('#00FF00')
-            this.statusText.setFontSize('20px')
+            this.statusText.setColor('#FFFFFF')
+            this.statusText.setFontSize('18px')
+            this.updateStatusBadge('online')
             console.log('🌐 ONLINE MODE: Players can connect from different devices/networks')
           } else {
             // Fallback to LOCAL mode
             this.statusText.setText('📱 LOCAL MODE - Open 2 tabs in same browser')
-            this.statusText.setColor('#FFA500')
-            this.statusText.setFontSize('18px')
+            this.statusText.setColor('#FFFFFF')
+            this.statusText.setFontSize('16px')
+            this.updateStatusBadge('local')
             console.log('📱 LOCAL MODE: Both players must use the same browser')
           }
           
@@ -559,8 +713,9 @@ export class OnlineLobbyScene extends Phaser.Scene {
         } else {
           // Connection failed - show friendly message
           this.statusText.setText('⚠️ Online server unavailable')
-          this.statusText.setColor('#FFA500')
-          this.statusText.setFontSize('18px')
+          this.statusText.setColor('#FFFFFF')
+          this.statusText.setFontSize('16px')
+          this.updateStatusBadge('error')
           
           // Disable online buttons
           this.createRoomButton.setAlpha(0.3)

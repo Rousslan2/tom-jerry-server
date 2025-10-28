@@ -6,6 +6,12 @@ export class GameOverScene extends Phaser.Scene {
     super({ key: 'GameOverScene' })
   }
 
+  init(data) {
+    // Receive score and stats from GameScene
+    this.finalScore = data.score || 0
+    this.movesUsed = data.moves || 0
+  }
+
   preload() {
     this.load.image('button_normal', 'https://cdn-game-mcp.gambo.ai/53ea91d9-082a-4d85-a7b6-f5530b90dfa3/images/button_normal.png')
     this.load.audio('ui_click', 'https://cdn-game-mcp.gambo.ai/57fc23da-9ff4-420e-9481-481da6820432/sound_effects/ui_click.mp3')
@@ -74,8 +80,46 @@ export class GameOverScene extends Phaser.Scene {
       lineSpacing: 8
     }).setOrigin(0.5, 0.5).setDepth(200)
 
+    // ⭐ NEW: Stats display
+    this.createStatsDisplay(centerX, centerY)
+
     // Create button area
     this.createGameOverButtons(centerX, centerY)
+  }
+
+  createStatsDisplay(centerX, centerY) {
+    // Stats panel
+    const statY = centerY - 40
+    
+    // Score display
+    this.add.text(centerX, statY, `🏆 Final Score: ${this.finalScore.toLocaleString()}`, {
+      fontSize: '24px',
+      fontFamily: window.getGameFont(),
+      color: '#FFD700',
+      stroke: '#8B0000',
+      strokeThickness: 3,
+      fontStyle: 'bold'
+    }).setOrigin(0.5, 0.5).setDepth(200)
+    
+    // Moves used
+    this.add.text(centerX, statY + 40, `✨ Moves Used: ${this.movesUsed}`, {
+      fontSize: '18px',
+      fontFamily: window.getGameFont(),
+      color: '#FFE4E1',
+      stroke: '#8B0000',
+      strokeThickness: 2,
+      fontStyle: 'bold'
+    }).setOrigin(0.5, 0.5).setDepth(200)
+    
+    // Encouragement message
+    this.add.text(centerX, statY + 75, '💪 Try again to beat your score!', {
+      fontSize: '16px',
+      fontFamily: window.getGameFont(),
+      color: '#32CD32',
+      stroke: '#006400',
+      strokeThickness: 2,
+      fontStyle: 'bold'
+    }).setOrigin(0.5, 0.5).setDepth(200)
   }
 
   createGameOverButtons(centerX, centerY) {
@@ -83,7 +127,7 @@ export class GameOverScene extends Phaser.Scene {
     const buttonHeight = 50
     const buttonSpacing = 100  // Increase spacing
     
-    const buttonAreaY = centerY + 20  // Move everything down
+    const buttonAreaY = centerY + 150  // Move buttons further down to avoid covering stats
     
     // Try Again button (green theme) - move further down
     this.createTryAgainButton(centerX, buttonAreaY - buttonSpacing/2, buttonWidth, buttonHeight)

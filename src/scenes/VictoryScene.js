@@ -6,6 +6,13 @@ export class VictoryScene extends Phaser.Scene {
     super({ key: 'VictoryScene' })
   }
 
+  init(data) {
+    // Receive score and stats from GameScene
+    this.finalScore = data.score || 0
+    this.movesUsed = data.moves || 0
+    this.maxMoves = data.maxMoves || 50
+  }
+
   preload() {
     this.load.image('button_normal', 'https://cdn-game-mcp.gambo.ai/53ea91d9-082a-4d85-a7b6-f5530b90dfa3/images/button_normal.png')
     this.load.audio('ui_click', 'https://cdn-game-mcp.gambo.ai/57fc23da-9ff4-420e-9481-481da6820432/sound_effects/ui_click.mp3')
@@ -118,8 +125,73 @@ export class VictoryScene extends Phaser.Scene {
       lineSpacing: 8
     }).setOrigin(0.5, 0.5).setDepth(300)
 
+    // ⭐ NEW: Stats display
+    this.createStatsDisplay(centerX, centerY)
+
     // Create button area
     this.createVictoryButtons(centerX, centerY)
+  }
+
+  createStatsDisplay(centerX, centerY) {
+    const movesRemaining = this.maxMoves - this.movesUsed
+    const moveBonus = movesRemaining * 50
+    
+    // Stats panel
+    const statY = centerY - 50
+    
+    this.add.text(centerX, statY, '📊 PERFORMANCE REPORT', {
+      fontSize: '20px',
+      fontFamily: window.getGameFont(),
+      color: '#8B4513',
+      stroke: '#FFD700',
+      strokeThickness: 3,
+      fontStyle: 'bold'
+    }).setOrigin(0.5, 0.5).setDepth(300)
+    
+    // Score display - animated counting effect
+    const scoreText = this.add.text(centerX, statY + 40, `🏆 Score: 0`, {
+      fontSize: '28px',
+      fontFamily: window.getGameFont(),
+      color: '#FFD700',
+      stroke: '#8B4513',
+      strokeThickness: 4,
+      fontStyle: 'bold'
+    }).setOrigin(0.5, 0.5).setDepth(300)
+    
+    // Animate score counting up
+    let currentScore = 0
+    const scoreIncrement = Math.ceil(this.finalScore / 30) // Count up in 30 frames
+    const scoreTimer = this.time.addEvent({
+      delay: 50,
+      repeat: 29,
+      callback: () => {
+        currentScore += scoreIncrement
+        if (currentScore > this.finalScore) currentScore = this.finalScore
+        scoreText.setText(`🏆 Score: ${currentScore.toLocaleString()}`)
+      }
+    })
+    
+    // Moves stats
+    this.add.text(centerX, statY + 85, `✨ Moves Used: ${this.movesUsed}/${this.maxMoves}`, {
+      fontSize: '18px',
+      fontFamily: window.getGameFont(),
+      color: '#8B4513',
+      stroke: '#FFF8DC',
+      strokeThickness: 2,
+      fontStyle: 'bold'
+    }).setOrigin(0.5, 0.5).setDepth(300)
+    
+    // Bonus display if any
+    if (movesRemaining > 0) {
+      this.add.text(centerX, statY + 115, `💎 Move Bonus: +${moveBonus} pts`, {
+        fontSize: '16px',
+        fontFamily: window.getGameFont(),
+        color: '#32CD32',
+        stroke: '#006400',
+        strokeThickness: 2,
+        fontStyle: 'bold'
+      }).setOrigin(0.5, 0.5).setDepth(300)
+    }
   }
 
   createVictoryButtons(centerX, centerY) {
@@ -127,7 +199,7 @@ export class VictoryScene extends Phaser.Scene {
     const buttonHeight = 50
     const buttonSpacing = 100
     
-    const buttonAreaY = centerY + 20
+    const buttonAreaY = centerY + 160 // Move buttons further down to avoid covering stats
     
     // Continue button (green theme)
     this.createContinueButton(centerX, buttonAreaY - buttonSpacing/2, buttonWidth, buttonHeight)

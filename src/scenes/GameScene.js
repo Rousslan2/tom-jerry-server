@@ -27,6 +27,13 @@ export class GameScene extends Phaser.Scene {
     this.selectedItem = null
     this.isDragging = false
     
+    // ⭐ NEW: Score & Combo System
+    this.score = 0
+    this.combo = 0
+    this.comboTimer = null
+    this.comboResetDelay = 2000 // Reset combo after 2 seconds of no elimination
+    this.lastEliminationTime = 0
+    
     // Opponent stats (for online mode)
     this.opponentStats = {
       'milk_box': 0,
@@ -63,10 +70,8 @@ export class GameScene extends Phaser.Scene {
 
   // Receive scene startup parameters
   init(data) {
-    // If reset flag exists, reinitialize game state
-    if (data && data.reset) {
-      this.initializeGameState()
-    }
+    // Always reinitialize game state when scene starts
+    this.initializeGameState()
     
     // Set game mode
     if (data && data.mode) {
@@ -568,6 +573,9 @@ export class GameScene extends Phaser.Scene {
     // Move counter
     this.createMoveCounter()
     
+    // ⭐ NEW: Score display
+    this.createScoreDisplay()
+    
     // Pause button
     this.createPauseButton()
     
@@ -660,6 +668,30 @@ export class GameScene extends Phaser.Scene {
       fontFamily: window.getGameFont(),  // Cute font
       color: '#FFFFFF',
       stroke: '#4169E1',  // Royal blue stroke
+      strokeThickness: 2,
+      align: 'center',
+      fontStyle: 'bold'
+    }).setOrigin(0.5, 0.5).setDepth(2100)
+  }
+
+  createScoreDisplay() {
+    const screenWidth = this.cameras.main.width
+    
+    // Score background - purple gradient
+    this.scoreBg = this.add.graphics()
+    this.scoreBg.fillGradientStyle(0x9370DB, 0x9370DB, 0xBA55D3, 0xBA55D3, 0.95)
+    this.scoreBg.fillRoundedRect(screenWidth * 0.35, 20, screenWidth * 0.25, 60, 15)
+    
+    // Add white border
+    this.scoreBg.lineStyle(3, 0xFFFFFF, 0.9)
+    this.scoreBg.strokeRoundedRect(screenWidth * 0.35, 20, screenWidth * 0.25, 60, 15)
+    this.scoreBg.setDepth(2000)
+    
+    this.scoreText = this.add.text(screenWidth * 0.475, 50, `🏆 Score: 0`, {
+      fontSize: `${window.getResponsiveFontSize(18)}px`,
+      fontFamily: window.getGameFont(),
+      color: '#FFFFFF',
+      stroke: '#4B0082',
       strokeThickness: 2,
       align: 'center',
       fontStyle: 'bold'
@@ -1212,8 +1244,45 @@ export class GameScene extends Phaser.Scene {
     const gridCell = this.gridData[row][col]
     const slot = this.gridSlots[row][col]
     
-    // Play cartoon elimination sound
-    this.sound.play('match_eliminate', { volume: audioConfig.sfxVolume.value })
+    // ⭐ NEW: Combo system logic
+    const currentTime = this.time.now
+    const timeSinceLastElimination = currentTime - this.lastEliminationTime
+    
+    // If less than 2 seconds since last elimination, increment combo
+    if (timeSinceLastElimination < this.comboResetDelay && this.combo > 0) {
+      this.combo++
+    } else {
+      this.combo = 1 // Reset to 1 (first elimination)
+    }
+    
+    this.lastEliminationTime = currentTime
+    
+    // Clear existing timer and create new one
+    if (this.comboTimer) {
+      this.comboTimer.remove()
+    }
+    
+    this.comboTimer = this.time.delayedCall(this.comboResetDelay, () => {
+      this.combo = 0 // Reset combo after delay
+    })
+    
+    // ⭐ Calculate score based on combo
+    const basePoints = 100
+    const comboMultiplier = this.combo
+    const earnedPoints = basePoints * comboMultiplier
+    this.score += earnedPoints
+    
+    // Update score display
+    this.updateScoreDisplay()
+    
+    // Play appropriate sound based on combo level
+    if (this.combo >= 5) {
+      this.sound.play('match_eliminate', { volume: audioConfig.sfxVolume.value, rate: 1.5 })
+    } else if (this.combo >= 3) {
+      this.sound.play('match_eliminate', { volume: audioConfig.sfxVolume.value, rate: 1.3 })
+    } else {
+      this.sound.play('match_eliminate', { volume: audioConfig.sfxVolume.value })
+    }
     
     // Update elimination count
     this.eliminatedCounts[itemType] += gameConfig.maxItemsPerSlot.value
@@ -1222,8 +1291,8 @@ export class GameScene extends Phaser.Scene {
     // Send updated stats to opponent in online mode
     this.sendMyStatsToOpponent()
     
-    // Create cartoon-style elimination effect
-    this.createCartoonEliminationEffect(slot.x, slot.y, itemType)
+    // Create cartoon-style elimination effect with combo display
+    this.createCartoonEliminationEffect(slot.x, slot.y, itemType, earnedPoints)
     
     // Cartoon-style item elimination animation
     gridCell.items.forEach((item, index) => {
@@ -1268,7 +1337,7 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
-  createCartoonEliminationEffect(x, y, itemType) {
+  createCartoonEliminationEffect(x, y, itemType, earnedPoints) {
     // Jerry direct escape animation, but add pop effect to make it more obvious
     const jerry = this.add.image(x, y, 'mouse_run_away')
       .setOrigin(0.5, 0.5)
@@ -1384,12 +1453,54 @@ export class GameScene extends Phaser.Scene {
       }
     })
 
-    // Cute +score effect
-    const scoreText = this.add.text(x + 35, y - 25, '💖 +3 💖', {
-      fontSize: '19px',  // Reduce text size
-      fontFamily: window.getGameFont(),  // Cute font
-      color: '#FF1493',  // Deep pink
-      stroke: '#FFFFFF',
+    // ⭐ NEW: Dynamic combo and score display
+    let comboText = ''
+    let comboColor = '#FFD700' // Gold by default
+    let comboFontSize = '22px'
+    
+    if (this.combo >= 5) {
+      comboText = `🔥 MEGA COMBO x${this.combo}! 🔥`
+      comboColor = '#FF4500' // Red-orange
+      comboFontSize = '28px'
+    } else if (this.combo >= 3) {
+      comboText = `⚡ COMBO x${this.combo}! ⚡`
+      comboColor = '#FF8C00' // Dark orange
+      comboFontSize = '24px'
+    } else if (this.combo >= 2) {
+      comboText = `✨ COMBO x${this.combo}! ✨`
+      comboColor = '#FFD700' // Gold
+      comboFontSize = '22px'
+    }
+    
+    // Show combo text if combo > 1
+    if (this.combo > 1) {
+      const comboTextObj = this.add.text(x, y - 80, comboText, {
+        fontSize: comboFontSize,
+        fontFamily: window.getGameFont(),
+        color: comboColor,
+        stroke: '#000000',
+        strokeThickness: 4,
+        fontStyle: 'bold'
+      }).setOrigin(0.5, 0.5).setDepth(10001)
+      
+      // Combo text animation - bigger bounce for higher combos
+      this.tweens.add({
+        targets: comboTextObj,
+        y: y - 120,
+        scaleX: 1.3,
+        scaleY: 1.3,
+        alpha: 0,
+        duration: 1000,
+        ease: 'Back.easeOut'
+      })
+    }
+    
+    // Show score earned
+    const scoreText = this.add.text(x + 35, y - 25, `+${earnedPoints} 💎`, {
+      fontSize: '24px',
+      fontFamily: window.getGameFont(),
+      color: '#FFD700',
+      stroke: '#8B4513',
       strokeThickness: 3,
       fontStyle: 'bold'
     }).setOrigin(0.5, 0.5).setDepth(10000)
@@ -1630,6 +1741,20 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  updateScoreDisplay() {
+    this.scoreText.setText(`🏆 Score: ${this.score.toLocaleString()}`)
+    
+    // Add bounce animation on score update
+    this.tweens.add({
+      targets: this.scoreText,
+      scaleX: 1.2,
+      scaleY: 1.2,
+      duration: 150,
+      ease: 'Back.easeOut',
+      yoyo: true
+    })
+  }
+
   checkGameEnd() {
     // Check victory conditions - need to achieve all targets
     const milkTarget = this.eliminatedCounts['milk_box'] >= levelConfig.targetMilk.value
@@ -1640,7 +1765,11 @@ export class GameScene extends Phaser.Scene {
     if (victoryConditionMet && !this.levelComplete) {
       this.levelComplete = true
       this.sound.play('level_complete', { volume: audioConfig.sfxVolume.value })
-      this.scene.launch('VictoryScene')
+      this.scene.launch('VictoryScene', { 
+        score: this.score,
+        moves: this.currentMoves,
+        maxMoves: levelConfig.maxMoves.value
+      })
       return
     }
     
@@ -1648,7 +1777,10 @@ export class GameScene extends Phaser.Scene {
     if (this.currentMoves >= levelConfig.maxMoves.value && !this.levelComplete) {
       this.gameOver = true
       this.sound.play('game_over', { volume: audioConfig.sfxVolume.value })
-      this.scene.launch('GameOverScene')
+      this.scene.launch('GameOverScene', {
+        score: this.score,
+        moves: this.currentMoves
+      })
     }
   }
 
