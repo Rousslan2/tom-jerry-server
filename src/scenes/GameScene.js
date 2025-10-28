@@ -916,9 +916,9 @@ export class GameScene extends Phaser.Scene {
     const cols = gameConfig.gridCols.value
     const totalPositions = rows * cols * 3 // Total positions (5x6x3 = 90)
     
-    // Calculate number of positions to leave empty (3-6)
-    const emptyPositions = Phaser.Math.Between(3, 6)
-    const filledPositions = totalPositions - emptyPositions
+    // Leave much more space - fill only 60-70% of positions for better gameplay
+    const fillPercentage = Phaser.Math.Between(60, 70) / 100
+    const filledPositions = Math.floor(totalPositions * fillPercentage)
     
     // Create array of all positions
     const allPositions = []
@@ -933,10 +933,22 @@ export class GameScene extends Phaser.Scene {
     // Randomly shuffle position array
     Phaser.Utils.Array.Shuffle(allPositions)
     
+    // Target items that need to be collected
+    const targetItems = ['milk_box', 'chips_bag', 'cola_bottle']
+    
     // Fill first filledPositions positions
     for (let i = 0; i < filledPositions; i++) {
       const pos = allPositions[i]
-      this.addItemToSlot(pos.row, pos.col, this.getRandomItemType(), pos.position)
+      let itemType
+      
+      // First 15 items: guarantee mix of target items (50% chance each)
+      if (i < 15 && Math.random() < 0.5) {
+        itemType = targetItems[Phaser.Math.Between(0, targetItems.length - 1)]
+      } else {
+        itemType = this.getRandomItemType()
+      }
+      
+      this.addItemToSlot(pos.row, pos.col, itemType, pos.position)
     }
   }
 

@@ -79,7 +79,7 @@
       "description": "Target cola count"
     },
     "maxMoves": {
-      "value": 30,
+      "value": 50,
       "type": "number",
       "description": "Maximum moves"
     }
