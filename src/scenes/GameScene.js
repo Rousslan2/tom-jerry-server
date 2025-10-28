@@ -1504,9 +1504,9 @@ export class GameScene extends Phaser.Scene {
       this.sound.play('screen_shake_rumble', { volume: audioConfig.sfxVolume.value })
       
       // All items vibrate!
-      this.gridSlots.forEach((row) => {
-        row.forEach((slot) => {
-          const gridCell = this.gridData[slot.row][slot.col]
+      this.gridSlots.forEach((row, rowIndex) => {
+        row.forEach((slot, colIndex) => {
+          const gridCell = this.gridData[rowIndex][colIndex]
           // Check if gridCell and items exist before accessing
           if (gridCell && gridCell.items && gridCell.items.length > 0) {
             gridCell.items.forEach((item) => {
