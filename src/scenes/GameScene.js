@@ -1677,6 +1677,14 @@ export class GameScene extends Phaser.Scene {
       return
     }
     
+    // 🚨 CRITICAL CHECK: Are ALL empty positions blocked by obstacles?
+    const emptyPositionsBlocked = this.checkIfAllEmptyPositionsBlocked()
+    if (emptyPositionsBlocked) {
+      console.log('💀 GAME OVER: All empty positions are blocked by obstacles!')
+      this.triggerGameOverDueToObstacles()
+      return
+    }
+    
     // Count items by type across all grid
     const itemCounts = {}
     
@@ -1709,6 +1717,114 @@ export class GameScene extends Phaser.Scene {
       console.log('🚨 NO POSSIBLE MOVES DETECTED! Adding helpful items...')
       this.addHelpfulItems()
     }
+  }
+  
+  // 🚨 Check if ALL empty positions are blocked by obstacles
+  checkIfAllEmptyPositionsBlocked() {
+    const rows = gameConfig.gridRows.value
+    const cols = gameConfig.gridCols.value
+    
+    let totalEmptyPositions = 0
+    let emptyPositionsWithObstacles = 0
+    
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const gridCell = this.gridData[row][col]
+        
+        // Count empty positions
+        const emptyCount = gridCell.positions.filter(pos => pos === null).length
+        totalEmptyPositions += emptyCount
+        
+        // If this slot has empty positions, check if it has obstacles
+        if (emptyCount > 0) {
+          const hasObstacles = gridCell.items.some(item => 
+            item.itemType === 'anvil_obstacle' || 
+            item.itemType === 'safe_obstacle' || 
+            item.itemType === 'piano_obstacle'
+          )
+          
+          if (hasObstacles) {
+            emptyPositionsWithObstacles += emptyCount
+          }
+        }
+      }
+    }
+    
+    // If we have empty positions AND they're ALL in slots with obstacles = BLOCKED!
+    if (totalEmptyPositions > 0 && totalEmptyPositions === emptyPositionsWithObstacles) {
+      console.log(`💀 ALL ${totalEmptyPositions} empty positions are blocked by obstacles!`)
+      return true
+    }
+    
+    return false
+  }
+  
+  // 💀 Trigger game over due to obstacles blocking all moves
+  triggerGameOverDueToObstacles() {
+    if (this.gameOver || this.levelComplete) return
+    
+    this.gameOver = true
+    
+    // Show dramatic warning message
+    const screenWidth = this.cameras.main.width
+    const screenHeight = this.cameras.main.height
+    
+    const warningText = this.add.text(screenWidth / 2, screenHeight / 2, '💀 BLOCKED!\nAll empty spaces are\nfilled with obstacles!', {
+      fontSize: `${window.getResponsiveFontSize(32)}px`,
+      fontFamily: window.getGameFont(),
+      color: '#FF0000',
+      stroke: '#000000',
+      strokeThickness: 6,
+      align: 'center',
+      fontStyle: 'bold'
+    }).setOrigin(0.5, 0.5)
+      .setDepth(10001)
+      .setAlpha(0)
+      .setScale(0)
+    
+    // Dramatic pop-in animation
+    this.tweens.add({
+      targets: warningText,
+      alpha: 1,
+      scale: 1.2,
+      duration: 400,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        // Flash effect
+        this.tweens.add({
+          targets: warningText,
+          alpha: 0.5,
+          duration: 200,
+          yoyo: true,
+          repeat: 3
+        })
+        
+        // Trigger game over after warning
+        this.time.delayedCall(2000, () => {
+          warningText.destroy()
+          
+          this.sound.play('game_over', { volume: audioConfig.sfxVolume.value })
+          
+          // 🎮 MULTIPLAYER: If someone loses, tell opponent
+          if (this.gameMode === 'online') {
+            multiplayerService.sendGameEnd('lose')
+          }
+          
+          this.scene.launch('GameOverScene', {
+            score: this.score,
+            moves: this.currentMoves,
+            mode: this.gameMode,
+            reason: 'Blocked by obstacles!'
+          })
+        })
+      }
+    })
+    
+    // Screen shake effect
+    this.cameras.main.shake(1000, 0.015)
+    
+    // Play warning sound
+    this.sound.play('screen_shake_rumble', { volume: audioConfig.sfxVolume.value })
   }
   
   // 🆘 Add helpful items when player is stuck
