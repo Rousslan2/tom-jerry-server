@@ -1,7 +1,8 @@
 // Socket.io Game Server for Tom vs Jerry Online Multiplayer
-// This file should be deployed to Glitch.com or any Node.js hosting
+// This file should be deployed to Railway or any Node.js hosting
 
 const express = require('express');
+const path = require('path');
 const app = express();
 const server = require('http').createServer(app);
 const io = require('socket.io')(server, {
@@ -17,6 +18,19 @@ const PORT = process.env.PORT || 3000;
 const rooms = new Map();
 
 console.log('🎮 Tom vs Jerry Game Server Starting...');
+
+// ⭐ IMPORTANT: Servir les fichiers statiques du jeu
+// Vite build génère les fichiers dans le dossier 'dist'
+app.use(express.static(path.join(__dirname, 'dist')));
+
+// ⭐ Route catch-all pour servir index.html (SPA)
+app.get('*', (req, res, next) => {
+  // Ne pas intercepter les routes API
+  if (req.path.startsWith('/rooms') || req.path.startsWith('/socket.io')) {
+    return next();
+  }
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
@@ -139,17 +153,6 @@ setInterval(() => {
     }
   });
 }, 30 * 60 * 1000);
-
-// Health check endpoint
-app.get('/', (req, res) => {
-  res.json({
-    status: 'online',
-    server: 'Tom vs Jerry Multiplayer Server',
-    activeRooms: rooms.size,
-    totalPlayers: Array.from(rooms.values()).reduce((total, room) => total + room.players.length, 0),
-    uptime: process.uptime()
-  });
-});
 
 // API endpoint to get room info (for debugging)
 app.get('/rooms', (req, res) => {
