@@ -1,8 +1,7 @@
-import { io } from 'socket.io-client'
-
 /**
  * Online Multiplayer Service
  * Uses public Socket.io server for game rooms
+ * Socket.io client is loaded via CDN in index.html
  */
 class MultiplayerService {
   constructor() {
@@ -38,9 +37,25 @@ class MultiplayerService {
       
       console.log('🌐 Connecting to server:', url)
       
+      // Check if Socket.io is available (loaded via CDN)
+      if (typeof window.io === 'undefined') {
+        console.warn('⚠️ Socket.io not loaded! Falling back to LOCAL mode')
+        this.useOnlineServer = false
+        this.connected = true
+        this.playerId = 'player_' + Math.random().toString(36).substr(2, 9)
+        
+        if (this.onConnected) {
+          this.onConnected()
+        }
+        
+        this.setupP2PRooms()
+        resolve(this.playerId)
+        return
+      }
+      
       try {
         // Try to connect to real Socket.io server
-        this.socket = io(url, {
+        this.socket = window.io(url, {
           transports: ['websocket', 'polling'],
           reconnection: true,
           reconnectionDelay: 1000,
