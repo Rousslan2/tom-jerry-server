@@ -679,6 +679,30 @@ export class GameScene extends Phaser.Scene {
   createTargetDisplay() {
     const screenWidth = this.cameras.main.width
     
+    // 🧘 En mode Zen, pas d'objectifs - juste un message relaxant
+    if (this.selectedGameMode === 'zen') {
+      this.targetBg = this.add.graphics()
+      this.targetBg.fillGradientStyle(0x9370DB, 0x9370DB, 0xBA55D3, 0xBA55D3, 0.95)  // Purple gradient
+      this.targetBg.fillRoundedRect(20, 20, screenWidth * 0.3, 120, 20)
+      
+      this.targetBg.lineStyle(4, 0xFFFFFF, 0.9)
+      this.targetBg.strokeRoundedRect(20, 20, screenWidth * 0.3, 120, 20)
+      this.targetBg.setDepth(2000)
+      
+      this.targetText = this.add.text(screenWidth * 0.15, 70, '🧘‍♂️ ZEN MODE\nJust Relax & Play 😌', {
+        fontSize: `${window.getResponsiveFontSize(18)}px`,
+        fontFamily: window.getGameFont(),
+        color: '#FFFFFF',
+        stroke: '#4B0082',
+        strokeThickness: 3,
+        align: 'center',
+        fontStyle: 'bold'
+      }).setOrigin(0.5, 0.5).setDepth(2100)
+      
+      this.targetDisplays = []
+      return
+    }
+    
     // Cute target background - cream yellow gradient background
     this.targetBg = this.add.graphics()
     this.targetBg.fillGradientStyle(0xFFFACD, 0xFFFACD, 0xF5DEB3, 0xF5DEB3, 0.95)  // Cream yellow gradient
