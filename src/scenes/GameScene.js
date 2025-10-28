@@ -1406,11 +1406,33 @@ export class GameScene extends Phaser.Scene {
   }
 
   refillSlot(row, col) {
-    // Randomly generate new items
-    const itemCount = Phaser.Math.Between(1, 2)
+    // Always refill with 3 items to keep gameplay flowing
+    const itemCount = 3
+    
+    // Target items that need to be collected (milk, chips, cola)
+    const targetItems = ['milk_box', 'chips_bag', 'cola_bottle']
+    
+    // Check which targets are not yet completed
+    const incompleteTargets = targetItems.filter(itemType => {
+      const display = this.targetDisplays.find(d => d.type === itemType)
+      return display && this.eliminatedCounts[itemType] < display.target
+    })
+    
+    // Guarantee at least 1 target item if targets are incomplete
+    const guaranteeTargetItem = incompleteTargets.length > 0 && Math.random() < 0.6 // 60% chance
     
     for (let i = 0; i < itemCount; i++) {
-      this.addItemToSlot(row, col, this.getRandomItemType())
+      let itemType
+      
+      // First item: 60% chance to be an incomplete target item
+      if (i === 0 && guaranteeTargetItem) {
+        itemType = incompleteTargets[Phaser.Math.Between(0, incompleteTargets.length - 1)]
+      } else {
+        // Other items: random selection
+        itemType = this.getRandomItemType()
+      }
+      
+      this.addItemToSlot(row, col, itemType)
     }
   }
 
