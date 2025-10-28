@@ -9,6 +9,8 @@ export class OnlineLobbyScene extends Phaser.Scene {
     this.isWaitingForOpponent = false
     this.roomCodeInput = ''
     this.errorPanelElements = null
+    this.virtualKeyboardOpen = false
+    this.keyboardElements = null
   }
 
   create() {
@@ -117,13 +119,47 @@ export class OnlineLobbyScene extends Phaser.Scene {
       align: 'center'
     }).setOrigin(0.5, 0.5).setDepth(100)
     
-    // Room code input box background
+    // Room code input box background (clickable)
     const codeBoxBg = this.add.graphics()
     codeBoxBg.fillStyle(0x2C3E50, 0.9)
     codeBoxBg.fillRoundedRect(centerX - 100, centerY + 45, 200, 50, 10)
     codeBoxBg.lineStyle(3, 0xFFD700, 1)
     codeBoxBg.strokeRoundedRect(centerX - 100, centerY + 45, 200, 50, 10)
     codeBoxBg.setDepth(99)
+    
+    // Make it interactive for mobile only
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    
+    if (isMobile) {
+      // Mobile: Add clickable zone for virtual keyboard
+      const inputZone = this.add.zone(centerX, centerY + 70, 200, 50).setInteractive()
+      inputZone.setDepth(100)
+      
+      // Click to open virtual keyboard on mobile
+      inputZone.on('pointerdown', () => {
+        this.openVirtualKeyboard()
+      })
+      
+      // Add visual hint for mobile users
+      this.add.text(centerX, centerY + 110, '👆 Tap to enter code', {
+        fontSize: '12px',
+        fontFamily: window.getGameFont(),
+        color: '#AAAAAA',
+        stroke: '#000000',
+        strokeThickness: 2,
+        align: 'center'
+      }).setOrigin(0.5, 0.5).setDepth(100)
+    } else {
+      // PC: Add keyboard hint
+      this.add.text(centerX, centerY + 110, '⌨️ Type with keyboard', {
+        fontSize: '12px',
+        fontFamily: window.getGameFont(),
+        color: '#AAAAAA',
+        stroke: '#000000',
+        strokeThickness: 2,
+        align: 'center'
+      }).setOrigin(0.5, 0.5).setDepth(100)
+    }
     
     // Room code display
     this.roomCodeDisplay = this.add.text(centerX, centerY + 70, '____', {
@@ -135,7 +171,7 @@ export class OnlineLobbyScene extends Phaser.Scene {
       align: 'center',
       fontStyle: 'bold',
       letterSpacing: '8px'
-    }).setOrigin(0.5, 0.5).setDepth(100)
+    }).setOrigin(0.5, 0.5).setDepth(101)
     
     // Join button
     this.joinRoomButton = this.createModernButton(
@@ -157,30 +193,242 @@ export class OnlineLobbyScene extends Phaser.Scene {
   }
 
   setupRoomCodeInput() {
-    this.input.keyboard.on('keydown', (event) => {
-      if (this.isWaitingForOpponent) return
-      
-      const key = event.key.toUpperCase()
-      
-      // Only accept letters and numbers
-      if (/^[A-Z0-9]$/.test(key) && this.roomCodeInput.length < 4) {
-        this.roomCodeInput += key
-        this.updateRoomCodeDisplay()
-        this.sound.play('ui_click', { volume: audioConfig.sfxVolume.value })
+    // Desktop keyboard
+    if (this.input.keyboard) {
+      this.input.keyboard.on('keydown', (event) => {
+        if (this.isWaitingForOpponent || this.virtualKeyboardOpen) return
+        
+        const key = event.key.toUpperCase()
+        
+        // Only accept letters and numbers
+        if (/^[A-Z0-9]$/.test(key) && this.roomCodeInput.length < 4) {
+          this.roomCodeInput += key
+          this.updateRoomCodeDisplay()
+          this.sound.play('ui_click', { volume: audioConfig.sfxVolume.value })
+        }
+        
+        // Backspace to delete
+        if (event.key === 'Backspace' && this.roomCodeInput.length > 0) {
+          this.roomCodeInput = this.roomCodeInput.slice(0, -1)
+          this.updateRoomCodeDisplay()
+          this.sound.play('ui_click', { volume: audioConfig.sfxVolume.value })
+        }
+        
+        // Enter to join
+        if (event.key === 'Enter' && this.roomCodeInput.length === 4) {
+          this.onJoinRoom()
+        }
+      })
+    }
+  }
+
+  openVirtualKeyboard() {
+    if (this.virtualKeyboardOpen || this.isWaitingForOpponent) return
+    
+    this.virtualKeyboardOpen = true
+    const screenWidth = screenSize.width.value
+    const screenHeight = screenSize.height.value
+    
+    // Semi-transparent overlay
+    this.keyboardOverlay = this.add.rectangle(
+      screenWidth / 2,
+      screenHeight / 2,
+      screenWidth,
+      screenHeight,
+      0x000000,
+      0.7
+    ).setDepth(500).setInteractive()
+    
+    // Keyboard panel
+    const panelWidth = Math.min(400, screenWidth * 0.95)
+    const panelHeight = Math.min(350, screenHeight * 0.7)
+    
+    this.keyboardPanel = this.add.graphics()
+    this.keyboardPanel.fillStyle(0x2C3E50, 0.95)
+    this.keyboardPanel.fillRoundedRect(
+      screenWidth / 2 - panelWidth / 2,
+      screenHeight / 2 - panelHeight / 2,
+      panelWidth,
+      panelHeight,
+      15
+    )
+    this.keyboardPanel.lineStyle(3, 0xFFD700, 1)
+    this.keyboardPanel.strokeRoundedRect(
+      screenWidth / 2 - panelWidth / 2,
+      screenHeight / 2 - panelHeight / 2,
+      panelWidth,
+      panelHeight,
+      15
+    )
+    this.keyboardPanel.setDepth(501)
+    
+    // Title
+    this.keyboardTitle = this.add.text(
+      screenWidth / 2,
+      screenHeight / 2 - panelHeight / 2 + 30,
+      'Enter Room Code',
+      {
+        fontSize: '20px',
+        fontFamily: window.getGameFont(),
+        color: '#FFFFFF',
+        stroke: '#000000',
+        strokeThickness: 3,
+        fontStyle: 'bold'
       }
-      
-      // Backspace to delete
-      if (event.key === 'Backspace' && this.roomCodeInput.length > 0) {
-        this.roomCodeInput = this.roomCodeInput.slice(0, -1)
-        this.updateRoomCodeDisplay()
-        this.sound.play('ui_click', { volume: audioConfig.sfxVolume.value })
+    ).setOrigin(0.5, 0.5).setDepth(502)
+    
+    // Current input display
+    this.keyboardDisplay = this.add.text(
+      screenWidth / 2,
+      screenHeight / 2 - panelHeight / 2 + 80,
+      this.roomCodeInput.padEnd(4, '_'),
+      {
+        fontSize: '32px',
+        fontFamily: 'Courier New, monospace',
+        color: '#FFD700',
+        stroke: '#000000',
+        strokeThickness: 3,
+        fontStyle: 'bold',
+        letterSpacing: '10px'
       }
+    ).setOrigin(0.5, 0.5).setDepth(502)
+    
+    // Create keyboard buttons
+    this.keyboardButtons = []
+    const keys = [
+      ['Q', 'W', 'E', 'R', 'T', 'Y', 'U'],
+      ['A', 'S', 'D', 'F', 'G', 'H', 'J'],
+      ['Z', 'X', 'C', 'V', 'B', 'N', 'M'],
+      ['1', '2', '3', '4', '5', '6', '7'],
+      ['8', '9', '0']
+    ]
+    
+    const buttonSize = 35
+    const buttonSpacing = 5
+    const startY = screenHeight / 2 - panelHeight / 2 + 130
+    
+    keys.forEach((row, rowIndex) => {
+      const rowWidth = row.length * (buttonSize + buttonSpacing)
+      const startX = screenWidth / 2 - rowWidth / 2
       
-      // Enter to join
-      if (event.key === 'Enter' && this.roomCodeInput.length === 4) {
-        this.onJoinRoom()
+      row.forEach((key, colIndex) => {
+        const x = startX + colIndex * (buttonSize + buttonSpacing) + buttonSize / 2
+        const y = startY + rowIndex * (buttonSize + buttonSpacing)
+        
+        this.createKeyButton(x, y, buttonSize, key)
+      })
+    })
+    
+    // Delete button
+    this.createKeyButton(
+      screenWidth / 2 - 80,
+      startY + 5 * (buttonSize + buttonSpacing),
+      80,
+      '⌫ DEL',
+      () => {
+        if (this.roomCodeInput.length > 0) {
+          this.roomCodeInput = this.roomCodeInput.slice(0, -1)
+          this.keyboardDisplay.setText(this.roomCodeInput.padEnd(4, '_'))
+          this.sound.play('ui_click', { volume: audioConfig.sfxVolume.value })
+        }
+      }
+    )
+    
+    // Done button
+    this.createKeyButton(
+      screenWidth / 2 + 80,
+      startY + 5 * (buttonSize + buttonSpacing),
+      80,
+      '✓ OK',
+      () => {
+        this.closeVirtualKeyboard()
+        this.updateRoomCodeDisplay()
+      },
+      0x32CD32
+    )
+    
+    // Store elements for cleanup
+    this.keyboardElements = [
+      this.keyboardOverlay,
+      this.keyboardPanel,
+      this.keyboardTitle,
+      this.keyboardDisplay,
+      ...this.keyboardButtons
+    ]
+    
+    // Click overlay to close
+    this.keyboardOverlay.on('pointerdown', () => {
+      this.closeVirtualKeyboard()
+      this.updateRoomCodeDisplay()
+    })
+  }
+
+  createKeyButton(x, y, size, label, customCallback = null, color = 0x4169E1) {
+    const button = this.add.graphics()
+    button.fillStyle(color, 0.9)
+    button.fillRoundedRect(x - size / 2, y - size / 2, size, size, 5)
+    button.lineStyle(2, 0xFFFFFF, 0.8)
+    button.strokeRoundedRect(x - size / 2, y - size / 2, size, size, 5)
+    button.setDepth(502)
+    button.setInteractive(
+      new Phaser.Geom.Rectangle(x - size / 2, y - size / 2, size, size),
+      Phaser.Geom.Rectangle.Contains
+    )
+    
+    const text = this.add.text(x, y, label, {
+      fontSize: label.length > 1 ? '12px' : '18px',
+      fontFamily: window.getGameFont(),
+      color: '#FFFFFF',
+      stroke: '#000000',
+      strokeThickness: 2,
+      fontStyle: 'bold'
+    }).setOrigin(0.5, 0.5).setDepth(503)
+    
+    const callback = customCallback || (() => {
+      if (this.roomCodeInput.length < 4) {
+        this.roomCodeInput += label
+        this.keyboardDisplay.setText(this.roomCodeInput.padEnd(4, '_'))
+        this.sound.play('ui_click', { volume: audioConfig.sfxVolume.value })
+        
+        // Auto-close when 4 characters entered
+        if (this.roomCodeInput.length === 4) {
+          this.time.delayedCall(300, () => {
+            this.closeVirtualKeyboard()
+            this.updateRoomCodeDisplay()
+          })
+        }
       }
     })
+    
+    button.on('pointerdown', () => {
+      button.setScale(0.9)
+      callback()
+    })
+    
+    button.on('pointerup', () => {
+      button.setScale(1)
+    })
+    
+    button.on('pointerover', () => {
+      button.setScale(1.05)
+    })
+    
+    button.on('pointerout', () => {
+      button.setScale(1)
+    })
+    
+    this.keyboardButtons.push(button, text)
+  }
+
+  closeVirtualKeyboard() {
+    if (this.keyboardElements) {
+      this.keyboardElements.forEach(element => {
+        if (element && element.active) element.destroy()
+      })
+      this.keyboardElements = null
+    }
+    
+    this.virtualKeyboardOpen = false
   }
 
   updateRoomCodeDisplay() {
@@ -656,5 +904,8 @@ export class OnlineLobbyScene extends Phaser.Scene {
   shutdown() {
     // Clean up error panel when scene shuts down
     this.closeErrorPanel()
+    
+    // Clean up virtual keyboard
+    this.closeVirtualKeyboard()
   }
 }

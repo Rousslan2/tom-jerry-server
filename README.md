@@ -66,5 +66,6 @@ Game parameters can be adjusted in `src/gameConfig.json`:
 - Maximum moves
 - Volume settings
 
-Enjoy the game! 🎮"# tom-jerry-server" 
+Enjoy the game! 🎮"# Test webhook"    git add .   git commit -m "misse a jours"   git push
+"# Test webhook"    git add .   git commit -m "misse a jours"   git push
 "# Test webhook" 
