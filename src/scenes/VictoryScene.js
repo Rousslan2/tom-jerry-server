@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { screenSize, audioConfig } from '../gameConfig.json'
+import { multiplayerService } from '../services/MultiplayerService.js'
 
 export class VictoryScene extends Phaser.Scene {
   constructor() {
@@ -11,6 +12,7 @@ export class VictoryScene extends Phaser.Scene {
     this.finalScore = data.score || 0
     this.movesUsed = data.moves || 0
     this.maxMoves = data.maxMoves || 50
+    this.gameMode = data.mode || 'classic'  // 🎮 Track game mode
   }
 
   preload() {
@@ -21,6 +23,11 @@ export class VictoryScene extends Phaser.Scene {
   create() {
     const screenWidth = screenSize.width.value
     const screenHeight = screenSize.height.value
+
+    // 🏆 UPDATE STATS: Increment wins for online mode
+    if (this.gameMode === 'online') {
+      this.updateOnlineStats('win')
+    }
 
     // Create magnificent victory background
     this.createVictoryBackground()
@@ -412,6 +419,12 @@ export class VictoryScene extends Phaser.Scene {
   goToMainMenu() {
     this.sound.play('ui_click', { volume: audioConfig.sfxVolume.value })
     
+    // 🎮 Leave multiplayer room if in online mode
+    if (multiplayerService.inRoom()) {
+      console.log('👋 Leaving multiplayer room...')
+      multiplayerService.leaveRoom()
+    }
+    
     // Stop game music before returning to menu
     const gameScene = this.scene.get('GameScene')
     if (gameScene && gameScene.backgroundMusic && gameScene.backgroundMusic.isPlaying) {
@@ -424,5 +437,25 @@ export class VictoryScene extends Phaser.Scene {
     
     // Return to title scene
     this.scene.start('TitleScene')
+  }
+
+  // 📊 UPDATE ONLINE STATS IN LOCALSTORAGE
+  updateOnlineStats(result) {
+    try {
+      // Get existing stats from localStorage
+      let stats = JSON.parse(localStorage.getItem('onlineStats') || '{"wins": 0, "losses": 0}')
+      
+      // Increment appropriate counter
+      if (result === 'win') {
+        stats.wins = (stats.wins || 0) + 1
+        console.log('🏆 WIN recorded! Total wins:', stats.wins)
+      }
+      
+      // Save back to localStorage
+      localStorage.setItem('onlineStats', JSON.stringify(stats))
+      console.log('📊 Online stats updated:', stats)
+    } catch (error) {
+      console.error('❌ Failed to update online stats:', error)
+    }
   }
 }

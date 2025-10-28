@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { screenSize, audioConfig } from '../gameConfig.json'
+import { multiplayerService } from '../services/MultiplayerService.js'
 
 export class PauseScene extends Phaser.Scene {
   constructor() {
@@ -305,6 +306,12 @@ export class PauseScene extends Phaser.Scene {
 
   goToMainMenu() {
     this.sound.play('ui_click', { volume: audioConfig.sfxVolume.value })
+    
+    // 🎮 Leave multiplayer room if in online mode
+    if (multiplayerService.inRoom()) {
+      console.log('👋 Leaving multiplayer room...')
+      multiplayerService.leaveRoom()
+    }
     
     // Stop game music before returning to menu
     const gameScene = this.scene.get(this.callingScene)

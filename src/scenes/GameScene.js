@@ -17,8 +17,7 @@ export class GameScene extends Phaser.Scene {
     // 🎮 NEW: Game mode type (classic, time_attack, endless, zen)
     this.selectedGameMode = 'classic'
     
-    // 🎯 NEW: Generate random level targets!
-    this.generateRandomTargets()
+    // 🎯 NOTE: Random targets will be generated AFTER gameMode is set in init()
     
     // Game state
     this.gameOver = false
@@ -101,8 +100,29 @@ export class GameScene extends Phaser.Scene {
     const possibleTargets = levelConfig.possibleTargets.value
     const targetCounts = levelConfig.targetCounts.value
     
-    // Shuffle and select 3 random items as targets
-    const shuffled = Phaser.Utils.Array.Shuffle([...possibleTargets])
+    // 🌐 In online mode, synchronize targets between players!
+    let shuffled
+    if (this.gameMode === 'online' && this.isHost) {
+      // Host generates and stores targets
+      shuffled = Phaser.Utils.Array.Shuffle([...possibleTargets])
+      const targetTypes = [shuffled[0], shuffled[1], shuffled[2]]
+      localStorage.setItem('currentRoomTargets', JSON.stringify(targetTypes))
+      console.log('🎯 Host generated targets:', targetTypes)
+    } else if (this.gameMode === 'online' && !this.isHost) {
+      // Guest uses the same targets as host
+      const storedTargets = localStorage.getItem('currentRoomTargets')
+      if (storedTargets) {
+        const targetTypes = JSON.parse(storedTargets)
+        shuffled = [...targetTypes, ...possibleTargets.filter(t => !targetTypes.includes(t))]
+        console.log('🎯 Guest loaded targets:', targetTypes)
+      } else {
+        // Fallback if storage failed
+        shuffled = Phaser.Utils.Array.Shuffle([...possibleTargets])
+      }
+    } else {
+      // Single player mode - random selection
+      shuffled = Phaser.Utils.Array.Shuffle([...possibleTargets])
+    }
     
     this.levelTargets = [
       { type: shuffled[0], count: targetCounts[0] },
@@ -110,7 +130,7 @@ export class GameScene extends Phaser.Scene {
       { type: shuffled[2], count: targetCounts[2] }
     ]
     
-    console.log('🎯 New Random Targets:', this.levelTargets)
+    console.log('🎯 Final Random Targets:', this.levelTargets)
   }
 
   // Receive scene startup parameters
@@ -129,6 +149,9 @@ export class GameScene extends Phaser.Scene {
       this.selectedGameMode = data.gameMode
       console.log('🎮 Game Mode:', this.selectedGameMode)
     }
+    
+    // 🎯 NOW generate random targets AFTER gameMode is set!
+    this.generateRandomTargets()
   }
 
   preload() {
@@ -901,11 +924,11 @@ export class GameScene extends Phaser.Scene {
     const itemSpacing = screenWidth * 0.06
     const iconY = 138
     
-    // 🎯 Use same random targets for opponent
-    const target1Icon = this.add.image(baseX, iconY, this.levelTargets[0].type).setScale(0.042).setDepth(2100)
-    this.applyTomJerryItemEnhancement(target1Icon)
-    this.applyHighQualityRendering(target1Icon)
-    this.opponentMilkText = this.add.text(baseX, iconY + 26, `0/${this.levelTargets[0].count}`, {
+    // 🎯 Use same random targets for opponent (will be updated when we receive opponent's actual targets)
+    this.opponentTarget1Icon = this.add.image(baseX, iconY, this.levelTargets[0].type).setScale(0.042).setDepth(2100)
+    this.applyTomJerryItemEnhancement(this.opponentTarget1Icon)
+    this.applyHighQualityRendering(this.opponentTarget1Icon)
+    this.opponentTarget1Text = this.add.text(baseX, iconY + 26, `0/${this.levelTargets[0].count}`, {
       fontSize: `${window.getResponsiveFontSize(12)}px`,
       fontFamily: window.getGameFont(),
       color: '#FFFFFF',
@@ -915,10 +938,10 @@ export class GameScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5, 0.5).setDepth(2100)
     
-    const target2Icon = this.add.image(baseX + itemSpacing, iconY, this.levelTargets[1].type).setScale(0.042).setDepth(2100)
-    this.applyTomJerryItemEnhancement(target2Icon)
-    this.applyHighQualityRendering(target2Icon)
-    this.opponentChipsText = this.add.text(baseX + itemSpacing, iconY + 26, `0/${this.levelTargets[1].count}`, {
+    this.opponentTarget2Icon = this.add.image(baseX + itemSpacing, iconY, this.levelTargets[1].type).setScale(0.042).setDepth(2100)
+    this.applyTomJerryItemEnhancement(this.opponentTarget2Icon)
+    this.applyHighQualityRendering(this.opponentTarget2Icon)
+    this.opponentTarget2Text = this.add.text(baseX + itemSpacing, iconY + 26, `0/${this.levelTargets[1].count}`, {
       fontSize: `${window.getResponsiveFontSize(12)}px`,
       fontFamily: window.getGameFont(),
       color: '#FFFFFF',
@@ -928,10 +951,10 @@ export class GameScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5, 0.5).setDepth(2100)
     
-    const target3Icon = this.add.image(baseX + itemSpacing * 2, iconY, this.levelTargets[2].type).setScale(0.042).setDepth(2100)
-    this.applyTomJerryItemEnhancement(target3Icon)
-    this.applyHighQualityRendering(target3Icon)
-    this.opponentColaText = this.add.text(baseX + itemSpacing * 2, iconY + 26, `0/${this.levelTargets[2].count}`, {
+    this.opponentTarget3Icon = this.add.image(baseX + itemSpacing * 2, iconY, this.levelTargets[2].type).setScale(0.042).setDepth(2100)
+    this.applyTomJerryItemEnhancement(this.opponentTarget3Icon)
+    this.applyHighQualityRendering(this.opponentTarget3Icon)
+    this.opponentTarget3Text = this.add.text(baseX + itemSpacing * 2, iconY + 26, `0/${this.levelTargets[2].count}`, {
       fontSize: `${window.getResponsiveFontSize(12)}px`,
       fontFamily: window.getGameFont(),
       color: '#FFFFFF',
@@ -2628,10 +2651,36 @@ export class GameScene extends Phaser.Scene {
       }
     }
     
+    // 👋 Listen for opponent disconnect/leave
+    multiplayerService.onOpponentLeft = () => {
+      console.log('👋 Opponent disconnected!')
+      
+      if (!this.gameOver && !this.levelComplete) {
+        // Show notification that opponent left
+        this.showOpponentLeftNotification()
+        
+        // Award win to remaining player
+        this.time.delayedCall(2000, () => {
+          if (!this.gameOver && !this.levelComplete) {
+            this.levelComplete = true
+            this.sound.play('level_complete', { volume: audioConfig.sfxVolume.value })
+            this.scene.launch('VictoryScene', { 
+              score: this.score,
+              moves: this.currentMoves,
+              maxMoves: levelConfig.maxMoves.value,
+              mode: this.gameMode,
+              reason: 'Opponent Disconnected!'
+            })
+          }
+        })
+      }
+    }
+    
     // Listen for opponent's game state updates
     multiplayerService.onGameStateUpdate = (state) => {
-      if (state && state.eliminatedCounts) {
-        this.updateOpponentStats(state.eliminatedCounts)
+      if (state) {
+        // 🎯 Pass the FULL state object (includes eliminatedCounts AND levelTargets)
+        this.updateOpponentStats(state)
       }
     }
     
@@ -2660,6 +2709,7 @@ export class GameScene extends Phaser.Scene {
           this.scene.launch('GameOverScene', {
             score: this.score,
             moves: this.currentMoves,
+            mode: this.gameMode,  // 🎮 Pass 'online' for stats tracking
             reason: 'Opponent Won!'
           })
         }
@@ -2672,6 +2722,7 @@ export class GameScene extends Phaser.Scene {
             score: this.score,
             moves: this.currentMoves,
             maxMoves: levelConfig.maxMoves.value,
+            mode: this.gameMode,  // 🎮 Pass 'online' for stats tracking
             reason: 'Opponent Lost!'
           })
         }
@@ -2679,6 +2730,12 @@ export class GameScene extends Phaser.Scene {
     }
     
     console.log('✅ Multiplayer sync enabled - stats and background will sync in real-time')
+    
+    // 🎯 Send initial objectives to opponent immediately!
+    this.time.delayedCall(500, () => {
+      this.sendMyStatsToOpponent()
+      console.log('🎯 Initial objectives sent to opponent!')
+    })
   }
   
   updateBackgroundImage(backgroundKey) {
@@ -2712,75 +2769,119 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  updateOpponentUI() {
+    if (!this.opponentLevelTargets) return
+    
+    console.log('🎨 Updating opponent UI with their targets:', this.opponentLevelTargets)
+    
+    // Update icon 1
+    if (this.opponentTarget1Icon && this.opponentLevelTargets[0]) {
+      this.opponentTarget1Icon.setTexture(this.opponentLevelTargets[0].type)
+      this.applyTomJerryItemEnhancement(this.opponentTarget1Icon)
+      this.applyHighQualityRendering(this.opponentTarget1Icon)
+      
+      if (this.opponentTarget1Text) {
+        const currentCount = this.opponentStats[this.opponentLevelTargets[0].type] || 0
+        this.opponentTarget1Text.setText(`${currentCount}/${this.opponentLevelTargets[0].count}`)
+      }
+    }
+    
+    // Update icon 2
+    if (this.opponentTarget2Icon && this.opponentLevelTargets[1]) {
+      this.opponentTarget2Icon.setTexture(this.opponentLevelTargets[1].type)
+      this.applyTomJerryItemEnhancement(this.opponentTarget2Icon)
+      this.applyHighQualityRendering(this.opponentTarget2Icon)
+      
+      if (this.opponentTarget2Text) {
+        const currentCount = this.opponentStats[this.opponentLevelTargets[1].type] || 0
+        this.opponentTarget2Text.setText(`${currentCount}/${this.opponentLevelTargets[1].count}`)
+      }
+    }
+    
+    // Update icon 3
+    if (this.opponentTarget3Icon && this.opponentLevelTargets[2]) {
+      this.opponentTarget3Icon.setTexture(this.opponentLevelTargets[2].type)
+      this.applyTomJerryItemEnhancement(this.opponentTarget3Icon)
+      this.applyHighQualityRendering(this.opponentTarget3Icon)
+      
+      if (this.opponentTarget3Text) {
+        const currentCount = this.opponentStats[this.opponentLevelTargets[2].type] || 0
+        this.opponentTarget3Text.setText(`${currentCount}/${this.opponentLevelTargets[2].count}`)
+      }
+    }
+  }
+
   updateOpponentStats(opponentData) {
     if (this.gameMode !== 'online') return
     
-    // Update opponent stats from multiplayer service
-    if (opponentData.milk_box !== undefined) {
-      this.opponentStats.milk_box = opponentData.milk_box
-      if (this.opponentMilkText) {
-        this.opponentMilkText.setText(`${opponentData.milk_box}/${levelConfig.targetMilk.value}`)
-        
-        // Add animation when opponent makes progress
-        this.tweens.add({
-          targets: this.opponentMilkText,
-          scaleX: 1.2,
-          scaleY: 1.2,
-          duration: 150,
-          ease: 'Back.easeOut',
-          yoyo: true
-        })
-      }
+    console.log('📥 Received opponent stats:', opponentData)
+    
+    // 🎯 Store opponent's level targets if provided
+    if (opponentData.levelTargets) {
+      this.opponentLevelTargets = opponentData.levelTargets
+      console.log('📥 Received opponent targets:', this.opponentLevelTargets)
+      
+      // Update opponent UI with their actual objectives!
+      this.updateOpponentUI()
     }
     
-    if (opponentData.chips_bag !== undefined) {
-      this.opponentStats.chips_bag = opponentData.chips_bag
-      if (this.opponentChipsText) {
-        this.opponentChipsText.setText(`${opponentData.chips_bag}/${levelConfig.targetChips.value}`)
-        
-        // Add animation when opponent makes progress
-        this.tweens.add({
-          targets: this.opponentChipsText,
-          scaleX: 1.2,
-          scaleY: 1.2,
-          duration: 150,
-          ease: 'Back.easeOut',
-          yoyo: true
-        })
-      }
-    }
+    // 🎯 Update opponent stats dynamically based on OPPONENT'S targets!
+    const targetsToUse = this.opponentLevelTargets || this.levelTargets
     
-    if (opponentData.cola_bottle !== undefined) {
-      this.opponentStats.cola_bottle = opponentData.cola_bottle
-      if (this.opponentColaText) {
-        this.opponentColaText.setText(`${opponentData.cola_bottle}/${levelConfig.targetCola.value}`)
+    targetsToUse.forEach((target, index) => {
+      const itemType = target.type
+      const targetCount = target.count
+      
+      if (opponentData.eliminatedCounts && opponentData.eliminatedCounts[itemType] !== undefined) {
+        this.opponentStats[itemType] = opponentData.eliminatedCounts[itemType]
         
-        // Add animation when opponent makes progress
-        this.tweens.add({
-          targets: this.opponentColaText,
-          scaleX: 1.2,
-          scaleY: 1.2,
-          duration: 150,
-          ease: 'Back.easeOut',
-          yoyo: true
-        })
+        // Get the corresponding text element
+        let textElement = null
+        if (index === 0 && this.opponentTarget1Text) {
+          textElement = this.opponentTarget1Text
+        } else if (index === 1 && this.opponentTarget2Text) {
+          textElement = this.opponentTarget2Text
+        } else if (index === 2 && this.opponentTarget3Text) {
+          textElement = this.opponentTarget3Text
+        }
+        
+        if (textElement) {
+          textElement.setText(`${opponentData.eliminatedCounts[itemType]}/${targetCount}`)
+          
+          // Add animation when opponent makes progress
+          this.tweens.add({
+            targets: textElement,
+            scaleX: 1.2,
+            scaleY: 1.2,
+            duration: 150,
+            ease: 'Back.easeOut',
+            yoyo: true
+          })
+        }
       }
-    }
+    })
   }
 
   sendMyStatsToOpponent() {
     if (this.gameMode !== 'online') return
     
-    // Send current stats to opponent
+    // 🎯 Send current stats AND my objectives to opponent!
+    const targetType1 = this.levelTargets[0].type
+    const targetType2 = this.levelTargets[1].type
+    const targetType3 = this.levelTargets[2].type
+    
     const myStats = {
       eliminatedCounts: {
-        milk_box: this.eliminatedCounts['milk_box'],
-        chips_bag: this.eliminatedCounts['chips_bag'],
-        cola_bottle: this.eliminatedCounts['cola_bottle']
+        [targetType1]: this.eliminatedCounts[targetType1],
+        [targetType2]: this.eliminatedCounts[targetType2],
+        [targetType3]: this.eliminatedCounts[targetType3]
       },
-      moves: this.currentMoves
+      moves: this.currentMoves,
+      // 🎯 NEW: Send my objectives so opponent can display them!
+      levelTargets: this.levelTargets
     }
     
+    console.log('📤 Sending my stats to opponent:', myStats)
     multiplayerService.sendGameState(myStats)
   }
 
@@ -3112,7 +3213,7 @@ export class GameScene extends Phaser.Scene {
         score: this.score,
         moves: this.currentMoves,
         maxMoves: levelConfig.maxMoves.value,
-        mode: this.selectedGameMode
+        mode: this.gameMode  // 🎮 Pass 'online' or 'single' for stats tracking
       })
       return
     }
@@ -3129,7 +3230,8 @@ export class GameScene extends Phaser.Scene {
       
       this.scene.launch('GameOverScene', {
         score: this.score,
-        moves: this.currentMoves
+        moves: this.currentMoves,
+        mode: this.gameMode  // 🎮 Pass 'online' or 'single' for stats tracking
       })
     }
   }
@@ -3208,6 +3310,7 @@ export class GameScene extends Phaser.Scene {
       this.scene.launch('GameOverScene', {
         score: this.score,
         moves: this.currentMoves,
+        mode: this.gameMode,  // 🎮 Pass 'online' or 'single' for stats tracking
         reason: 'Time is up!'
       })
     }
@@ -3295,6 +3398,96 @@ export class GameScene extends Phaser.Scene {
       this.scene.pause()
       this.scene.launch('PauseScene')
     }
+  }
+
+  // 👋 Show notification when opponent leaves
+  showOpponentLeftNotification() {
+    const screenWidth = this.cameras.main.width
+    const screenHeight = this.cameras.main.height
+    
+    // Create semi-transparent overlay
+    const overlay = this.add.rectangle(
+      screenWidth / 2, 
+      screenHeight / 2, 
+      screenWidth, 
+      screenHeight, 
+      0x000000, 
+      0.5
+    ).setDepth(9999)
+    
+    // Create notification panel
+    const panelWidth = 400
+    const panelHeight = 150
+    const panel = this.add.rectangle(
+      screenWidth / 2,
+      screenHeight / 2,
+      panelWidth,
+      panelHeight,
+      0xFF6347,
+      1
+    ).setDepth(10000).setStrokeStyle(6, 0x8B0000)
+    
+    // Icon and text
+    const notificationText = this.add.text(
+      screenWidth / 2,
+      screenHeight / 2 - 20,
+      '👋 OPPONENT DISCONNECTED',
+      {
+        fontSize: '24px',
+        fontFamily: window.getGameFont(),
+        color: '#FFFFFF',
+        stroke: '#000000',
+        strokeThickness: 4,
+        align: 'center',
+        fontStyle: 'bold'
+      }
+    ).setOrigin(0.5, 0.5).setDepth(10001)
+    
+    const subText = this.add.text(
+      screenWidth / 2,
+      screenHeight / 2 + 25,
+      'You win by default!',
+      {
+        fontSize: '18px',
+        fontFamily: window.getGameFont(),
+        color: '#FFD700',
+        stroke: '#000000',
+        strokeThickness: 3,
+        align: 'center'
+      }
+    ).setOrigin(0.5, 0.5).setDepth(10001)
+    
+    // Scale in animation
+    panel.setScale(0)
+    notificationText.setScale(0)
+    subText.setScale(0)
+    
+    this.tweens.add({
+      targets: [overlay],
+      alpha: { from: 0, to: 0.5 },
+      duration: 300,
+      ease: 'Power2'
+    })
+    
+    this.tweens.add({
+      targets: panel,
+      scaleX: 1,
+      scaleY: 1,
+      duration: 400,
+      ease: 'Back.easeOut'
+    })
+    
+    this.tweens.add({
+      targets: [notificationText, subText],
+      scaleX: 1,
+      scaleY: 1,
+      duration: 400,
+      ease: 'Elastic.easeOut',
+      delay: 200
+    })
+    
+    // Play notification sound
+    this.sound.play('ui_click', { volume: audioConfig.sfxVolume.value })
   }
 
   shutdown() {

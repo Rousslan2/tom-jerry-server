@@ -57,6 +57,7 @@ export class SettingsScene extends Phaser.Scene {
       (value) => {
         audioConfig.musicVolume.value = value
         this.updateAllMusicVolumes()
+        this.saveSettings()  // 💾 Save immediately!
       }
     )
 
@@ -68,6 +69,7 @@ export class SettingsScene extends Phaser.Scene {
       audioConfig.sfxVolume.value,
       (value) => {
         audioConfig.sfxVolume.value = value
+        this.saveSettings()  // 💾 Save immediately!
         // Play test sound
         this.sound.play('ui_click', { volume: value })
       }
@@ -251,27 +253,38 @@ export class SettingsScene extends Phaser.Scene {
   }
 
   updateAllMusicVolumes() {
-    // Update volume for all currently playing music in Title and Game scenes
-    const titleScene = this.scene.get('TitleScene')
-    const gameScene = this.scene.get('GameScene')
+    // 🎵 Update volume for ALL scenes that might have background music playing
+    const scenesWithMusic = [
+      'TitleScene',
+      'ModeSelectionScene',
+      'GameModeMenuScene',
+      'OnlineLobbyScene',
+      'GameScene'
+    ]
     
-    if (titleScene && titleScene.backgroundMusic && titleScene.backgroundMusic.isPlaying) {
-      titleScene.backgroundMusic.setVolume(audioConfig.musicVolume.value)
-    }
-    
-    if (gameScene && gameScene.backgroundMusic && gameScene.backgroundMusic.isPlaying) {
-      gameScene.backgroundMusic.setVolume(audioConfig.musicVolume.value)
-    }
+    scenesWithMusic.forEach(sceneKey => {
+      const scene = this.scene.get(sceneKey)
+      if (scene && scene.backgroundMusic && scene.backgroundMusic.isPlaying) {
+        scene.backgroundMusic.setVolume(audioConfig.musicVolume.value)
+        console.log(`🔊 Updated music volume in ${sceneKey} to ${Math.round(audioConfig.musicVolume.value * 100)}%`)
+      }
+    })
   }
 
-  closeSettings() {
-    // Save settings to localStorage
+  saveSettings() {
+    // 💾 Save settings to localStorage immediately
     localStorage.setItem('gameSettings', JSON.stringify({
       musicVolume: audioConfig.musicVolume.value,
       sfxVolume: audioConfig.sfxVolume.value
     }))
+    console.log('💾 Settings saved:', {
+      music: Math.round(audioConfig.musicVolume.value * 100) + '%',
+      sfx: Math.round(audioConfig.sfxVolume.value * 100) + '%'
+    })
+  }
 
-    // Close scene
+  closeSettings() {
+    // Settings are already saved in real-time, just close
     this.scene.stop()
   }
 
