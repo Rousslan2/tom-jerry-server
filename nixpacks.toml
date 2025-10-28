@@ -3,6 +3,7 @@ nixPkgs = ['nodejs_18']
 
 [phases.install]
 cmds = [
+  'rm -rf node_modules',
   'npm install --include=optional'
 ]
 
