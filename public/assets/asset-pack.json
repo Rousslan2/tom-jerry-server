@@ -1,0 +1,298 @@
+{
+  "fonts": {
+    "files": [
+      {
+        "url": "https://cdn-game-mcp-test.gambo.ai/shared/retro-pixel-arcade.otf.woff2",
+        "type": "font",
+        "key": "RetroPixel",
+        "fontType": "opentype"
+      },
+      {
+        "url": "https://cdn-game-mcp-test.gambo.ai/shared/supercell-magic_0.ttf",
+        "type": "font",
+        "key": "SupercellMagic",
+        "fontType": "opentype"
+      }
+    ]
+  },
+  "ui_images": {
+    "files": [
+      {
+        "type": "image",
+        "key": "jerry_head",
+        "url": "https://cdn-game-mcp.gambo.ai/e3edd850-8141-4a9a-9b20-04505660fefa/images/mouse_run_away.png"
+      },
+      {
+        "type": "image",
+        "key": "game_title",
+        "url": "https://cdn-game-mcp.gambo.ai/eb37dff2-9190-47d5-98a9-fd0fc7d4d162/images/tom_jerry_game_title.png"
+      },
+      {
+        "type": "image",
+        "key": "title_background",
+        "url": "https://cdn-game-mcp.gambo.ai/7bbac48b-7ef6-4510-896c-9779c3fc88e1/images/tom_jerry_title_background.png"
+      },
+      {
+        "type": "image",
+        "key": "cartoon_button",
+        "url": "https://cdn-game-mcp.gambo.ai/22c69798-f78d-44bb-8f4f-3cf2cfd1f9ec/images/cartoon_button.png"
+      },
+      {
+        "type": "image",
+        "key": "mouse_run_away",
+        "url": "https://cdn-game-mcp.gambo.ai/e3edd850-8141-4a9a-9b20-04505660fefa/images/mouse_run_away.png"
+      },
+      {
+        "type": "image",
+        "key": "dust_cloud",
+        "url": "https://cdn-game-mcp.gambo.ai/a3b45b7e-eaa4-4068-80fa-281c20833c26/images/dust_cloud.png"
+      },
+      {
+        "type": "image",
+        "key": "grid_slot",
+        "url": "https://cdn-game-mcp.gambo.ai/8e3584ce-0766-4489-bdc4-dd0164d3b9ae/images/grid_slot.png"
+      },
+      {
+        "type": "image",
+        "key": "shelf_container",
+        "url": "https://cdn-game-mcp.gambo.ai/dd4338b6-764b-44eb-9665-c13533ddbdd1/images/shelf_container.png"
+      },
+      {
+        "type": "image",
+        "key": "button_normal",
+        "url": "https://cdn-game-mcp.gambo.ai/53ea91d9-082a-4d85-a7b6-f5530b90dfa3/images/button_normal.png"
+      },
+      {
+        "type": "image",
+        "key": "particle_effect",
+        "url": "https://cdn-game-mcp.gambo.ai/d4588377-bf66-4ab1-b602-fdaeec011338/images/particle_effect.png"
+      },
+      {
+        "type": "image",
+        "key": "progress_bar_bg",
+        "url": "https://cdn-game-mcp.gambo.ai/d4085ae9-51c8-4035-8312-b5c3b42b8539/images/progress_bar_bg.png"
+      },
+      {
+        "type": "image",
+        "key": "progress_bar_fill",
+        "url": "https://cdn-game-mcp.gambo.ai/590cd58d-7d46-4152-b5fa-54f2791db023/images/progress_bar_fill.png"
+      },
+      {
+        "type": "image",
+        "key": "timer_ui",
+        "url": "https://cdn-game-mcp.gambo.ai/34bea6b1-6b0e-4102-925d-4e0787307012/images/timer_ui.png"
+      },
+      {
+        "type": "image",
+        "key": "target_display",
+        "url": "https://cdn-game-mcp.gambo.ai/9b5ceba1-5a57-4830-88de-d3c9e113a21f/images/target_display.png"
+      },
+      {
+        "type": "image",
+        "key": "score_counter",
+        "url": "https://cdn-game-mcp.gambo.ai/85e5faaa-58cf-4ce9-98c7-1c7fcd4a3916/images/score_counter.png"
+      }
+    ]
+  },
+  "backgrounds": {
+    "files": [
+      {
+        "type": "image",
+        "key": "tom_jerry_kitchen_background",
+        "url": "https://cdn-game-mcp.gambo.ai/64d2c2e1-bf3a-4edd-9890-2414e4ca93a4/images/tom_jerry_kitchen_background.png"
+      },
+      {
+        "type": "image",
+        "key": "tom_jerry_living_room_background",
+        "url": "https://cdn-game-mcp.gambo.ai/7ecad928-2f26-493f-aaf7-185a4257ce0d/images/tom_jerry_living_room_background.png"
+      },
+      {
+        "type": "image",
+        "key": "vintage_cartoon_background",
+        "url": "https://cdn-game-mcp.gambo.ai/6e12c5d4-40b9-4439-8422-e18d188911e6/images/vintage_cartoon_background.png"
+      },
+      {
+        "type": "image",
+        "key": "tom_jerry_garden_background",
+        "url": "https://cdn-game-mcp.gambo.ai/475dcd5c-1ca5-47f4-92af-794209d516d5/images/tom_jerry_garden_background.png"
+      },
+      {
+        "type": "image",
+        "key": "tom_jerry_basement_background",
+        "url": "https://cdn-game-mcp.gambo.ai/b658b34f-be0d-4b99-afbe-a27707bccbf3/images/tom_jerry_basement_background.png"
+      },
+      {
+        "type": "image",
+        "key": "shop_grid_background",
+        "url": "https://cdn-game-mcp.gambo.ai/d6816961-4c75-44de-a211-4d9535d7c87f/images/shop_grid_background.png"
+      }
+    ]
+  },
+  "game_items": {
+    "files": [
+      {
+        "type": "image",
+        "key": "tissue_pack",
+        "url": "https://cdn-game-mcp.gambo.ai/13094612-c99e-4753-a77d-5fe9e27fbe95/images/tissue_pack.png"
+      },
+      {
+        "type": "image",
+        "key": "yogurt_cups",
+        "url": "https://cdn-game-mcp.gambo.ai/aceaddd5-d2de-469a-b406-867ebb71164c/images/yogurt_cups.png"
+      },
+      {
+        "type": "image",
+        "key": "energy_drinks",
+        "url": "https://cdn-game-mcp.gambo.ai/f33b2250-f0c2-49e6-aa09-520df2e2c81a/images/energy_drinks.png"
+      },
+      {
+        "type": "image",
+        "key": "coffee_cans",
+        "url": "https://cdn-game-mcp.gambo.ai/701b3c7c-333e-4e78-9c20-5bf64e48f9bc/images/coffee_cans.png"
+      },
+      {
+        "type": "image",
+        "key": "shampoo_bottles",
+        "url": "https://cdn-game-mcp.gambo.ai/77de6a14-290f-43ad-9531-b487dfe6fd01/images/shampoo_bottles.png"
+      },
+      {
+        "type": "image",
+        "key": "juice_bottles",
+        "url": "https://cdn-game-mcp.gambo.ai/cb99e55f-c172-4619-bfa2-a629eac7dee7/images/juice_bottles.png"
+      },
+      {
+        "type": "image",
+        "key": "soap_dispensers",
+        "url": "https://cdn-game-mcp.gambo.ai/0a4ead82-85e6-41d4-ad39-a1d66ed0ddfe/images/soap_dispensers.png"
+      },
+      {
+        "type": "image",
+        "key": "instant_noodles",
+        "url": "https://cdn-game-mcp.gambo.ai/cbd1ccd7-9c3a-44f1-ab2f-99caed97081c/images/instant_noodles.png"
+      },
+      {
+        "type": "image",
+        "key": "candy_jars",
+        "url": "https://cdn-game-mcp.gambo.ai/0f465677-5bda-4c9f-867e-48794b53b533/images/candy_jars.png"
+      },
+      {
+        "type": "image",
+        "key": "tom_cheese",
+        "url": "https://cdn-game-mcp.gambo.ai/750f1a97-58d3-45b2-bf77-1fafa7cbc319/images/tom_cheese.png"
+      },
+      {
+        "type": "image",
+        "key": "jerry_mouse_hole",
+        "url": "https://cdn-game-mcp.gambo.ai/2bd053f6-f38b-42b3-91dc-a470b4231786/images/jerry_mouse_hole.png"
+      },
+      {
+        "type": "image",
+        "key": "tom_milk_bottle",
+        "url": "https://cdn-game-mcp.gambo.ai/e11fb356-6418-4366-8286-572b4eb11236/images/tom_milk_bottle.png"
+      },
+      {
+        "type": "image",
+        "key": "milk_box",
+        "url": "https://cdn-game-mcp.gambo.ai/78753e91-94e0-4962-9fcb-11b36d33e3c7/images/milk_box.png"
+      },
+      {
+        "type": "image",
+        "key": "chips_bag",
+        "url": "https://cdn-game-mcp.gambo.ai/0fc2414d-c509-4ae2-bfb8-86d923cfccc9/images/chips_bag.png"
+      },
+      {
+        "type": "image",
+        "key": "cola_bottle",
+        "url": "https://cdn-game-mcp.gambo.ai/ebb095a6-9ea7-47c9-8190-779852413054/images/cola_bottle.png"
+      },
+      {
+        "type": "image",
+        "key": "cookie_box",
+        "url": "https://cdn-game-mcp.gambo.ai/9a81ae26-f92e-40ba-b75e-d0685d5caf6b/images/cookie_box.png"
+      },
+      {
+        "type": "image",
+        "key": "detergent_bottle",
+        "url": "https://cdn-game-mcp.gambo.ai/cdd7ca79-1f93-4681-af49-78056c236672/images/detergent_bottle.png"
+      },
+      {
+        "type": "image",
+        "key": "toothpaste",
+        "url": "https://cdn-game-mcp.gambo.ai/10f9fe87-2fb3-4c0c-82c1-25313a6f18fc/images/toothpaste.png"
+      },
+      {
+        "type": "image",
+        "key": "bread",
+        "url": "https://cdn-game-mcp.gambo.ai/76d69327-bbe9-4bdb-8ccd-959ab180da8e/images/bread.png"
+      },
+      {
+        "type": "image",
+        "key": "towel",
+        "url": "https://cdn-game-mcp.gambo.ai/da0cd7c2-980d-4c77-b501-82ad6f577097/images/towel.png"
+      },
+      {
+        "type": "image",
+        "key": "tom_cat_watching",
+        "url": "https://cdn-game-mcp.gambo.ai/d01857d8-238b-4c52-ba91-51a633579ddf/images/tom_cat_watching.png"
+      }
+    ]
+  },
+  "sound_effects": {
+    "files": [
+      {
+        "type": "audio",
+        "key": "ui_click",
+        "url": "https://cdn-game-mcp.gambo.ai/57fc23da-9ff4-420e-9481-481da6820432/sound_effects/ui_click.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "item_drop",
+        "url": "https://cdn-game-mcp.gambo.ai/5d545019-703a-4e23-b244-8cfe040de700/sound_effects/item_drop.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "match_eliminate",
+        "url": "https://cdn-game-mcp.gambo.ai/9949cac8-70f1-4c5e-9a8c-d8e1abee30dd/sound_effects/match_eliminate.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "wrong_placement",
+        "url": "https://cdn-game-mcp.gambo.ai/c4fd3070-abc2-4c41-a274-3c5baf9891d1/sound_effects/wrong_placement.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "timer_tick",
+        "url": "https://cdn-game-mcp.gambo.ai/fde84de6-65e8-4607-b41f-f96b0434fe09/sound_effects/timer_tick.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "item_pickup",
+        "url": "https://cdn-game-mcp.gambo.ai/85e5e596-f6d3-479b-a691-e9ad7901911f/sound_effects/item_pickup.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "game_over",
+        "url": "https://cdn-game-mcp.gambo.ai/4a48c9ed-5d2a-4992-9da4-452f99ec0cb8/sound_effects/game_over.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "level_complete",
+        "url": "https://cdn-game-mcp.gambo.ai/dd0ce967-37c7-4c2d-8875-f9b2256ce3e2/sound_effects/level_complete.mp3"
+      }
+    ]
+  },
+  "background_musics": {
+    "files": [
+      {
+        "type": "audio",
+        "key": "tom_jerry_80s_retro_theme",
+        "url": "https://cdn-game-mcp.gambo.ai/431bbdf2-9828-4ac0-abc8-47486321160b/music/tom_jerry_80s_retro_theme.wav"
+      }
+    ]
+  },
+  "meta": {
+    "app": "Gambo AI",
+    "version": 1,
+    "showAllFilesInBlocks": false
+  }
+}

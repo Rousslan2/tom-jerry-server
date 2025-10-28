@@ -1,0 +1,99 @@
+{
+  "screenSize": {
+    "width": {
+      "value": 1152,
+      "type": "number",
+      "description": "Screen width"
+    },
+    "height": {
+      "value": 768,
+      "type": "number",
+      "description": "Screen height"
+    }
+  },
+  "mobileScreenSize": {
+    "width": {
+      "value": 768,
+      "type": "number",
+      "description": "Mobile screen width"
+    },
+    "height": {
+      "value": 1152,
+      "type": "number",
+      "description": "Mobile screen height"
+    }
+  },
+  "debugConfig": {
+    "debug": {
+      "value": false,
+      "type": "boolean",
+      "description": "Enable debug mode"
+    }
+  },
+  "gameConfig": {
+    "gridRows": {
+      "value": 3,
+      "type": "number",
+      "description": "Shelf rows"
+    },
+    "gridCols": {
+      "value": 4,
+      "type": "number",
+      "description": "Shelf columns"
+    },
+    "maxItemsPerSlot": {
+      "value": 3,
+      "type": "number",
+      "description": "Maximum items per slot"
+    },
+    "itemTypes": {
+      "value": 6,
+      "type": "number",
+      "description": "Item types count"
+    },
+    "eliminateDelay": {
+      "value": 300,
+      "type": "number",
+      "description": "Elimination delay time (milliseconds)"
+    },
+    "refillDelay": {
+      "value": 1000,
+      "type": "number",
+      "description": "Restock delay time (milliseconds)"
+    }
+  },
+  "levelConfig": {
+    "targetMilk": {
+      "value": 12,
+      "type": "number",
+      "description": "Target milk count"
+    },
+    "targetChips": {
+      "value": 9,
+      "type": "number",
+      "description": "Target broom count"
+    },
+    "targetCola": {
+      "value": 6,
+      "type": "number",
+      "description": "Target cola count"
+    },
+    "maxMoves": {
+      "value": 30,
+      "type": "number",
+      "description": "Maximum moves"
+    }
+  },
+  "audioConfig": {
+    "musicVolume": {
+      "value": 0.3,
+      "type": "number",
+      "description": "Background music volume"
+    },
+    "sfxVolume": {
+      "value": 0.5,
+      "type": "number",
+      "description": "Sound effects volume"
+    }
+  }
+}
