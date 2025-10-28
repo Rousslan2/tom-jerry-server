@@ -1331,9 +1331,40 @@ export class GameScene extends Phaser.Scene {
   handleItemDrop(item, pointer) {
     const dropResult = this.getSlotAndPositionAtLocation(pointer.x, pointer.y)
     
-    if (dropResult && this.canPlaceItemAtPosition(dropResult.row, dropResult.col, dropResult.position)) {
-      // Move item to new position
-      this.moveItemToPosition(item, dropResult.row, dropResult.col, dropResult.position)
+    if (dropResult) {
+      // 🎯 NEW: Auto-find empty position in the target slot!
+      let targetPosition = dropResult.position
+      const gridCell = this.gridData[dropResult.row][dropResult.col]
+      
+      // If the exact position is occupied, find the first empty position automatically
+      if (gridCell.positions[targetPosition] !== null) {
+        const emptyPosition = gridCell.positions.findIndex(pos => pos === null)
+        
+        if (emptyPosition !== -1) {
+          targetPosition = emptyPosition
+          console.log(`🎯 Auto-placed in empty position ${targetPosition} instead of occupied position ${dropResult.position}`)
+        } else {
+          // No empty positions at all - reject placement
+          this.returnItemToOriginalPosition(item)
+          this.tweens.killTweensOf(item)
+          this.tweens.add({
+            targets: item,
+            x: item.x - 10,
+            duration: 100,
+            ease: 'Power2',
+            yoyo: true,
+            repeat: 2
+          })
+          this.tweens.killTweensOf(item)
+          item.setScale(0.075)
+          item.setDepth(100 + (item.positionIndex || 0))
+          item.clearTint()
+          return
+        }
+      }
+      
+      // Move item to new position (either original or auto-found empty position)
+      this.moveItemToPosition(item, dropResult.row, dropResult.col, targetPosition)
       this.sound.play('item_pickup', { volume: audioConfig.sfxVolume.value })
       
       // Kill any existing tweens to prevent accumulation
