@@ -200,6 +200,9 @@ export class GameScene extends Phaser.Scene {
     
     // 🎪 Start Tom random event timer - Tom causes chaos!
     this.startTomEventTimer()
+    
+    // 🔍 Start periodic match checker - detect missed matches every 3 seconds
+    this.startPeriodicMatchChecker()
   }
 
   createBackground() {
@@ -1496,6 +1499,64 @@ export class GameScene extends Phaser.Scene {
         })
       }
     })
+  }
+  
+  // 🔍 Start periodic match checker to detect missed matches
+  startPeriodicMatchChecker() {
+    // Check every 3 seconds for any missed matches
+    this.periodicMatchTimer = this.time.addEvent({
+      delay: 3000, // Every 3 seconds
+      callback: () => {
+        if (!this.gameOver && !this.levelComplete) {
+          this.scanAllSlotsForMissedMatches()
+        }
+      },
+      loop: true
+    })
+    console.log('🔍 Periodic match checker started (every 3 seconds)')
+  }
+  
+  // 🔍 Scan all slots for missed matches
+  scanAllSlotsForMissedMatches() {
+    const rows = gameConfig.gridRows.value
+    const cols = gameConfig.gridCols.value
+    
+    let missedMatches = 0
+    
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const gridCell = this.gridData[row][col]
+        
+        // 🔄 First, resync the cell to fix any desync
+        if (gridCell.items.length !== gridCell.positions.filter(p => p !== null).length) {
+          console.warn(`🔄 Auto-resync (${row},${col}): items=${gridCell.items.length}, positions=${gridCell.positions.filter(p => p !== null).length}`)
+          this.resyncGridCell(row, col)
+        }
+        
+        // 🎯 Check if this slot has a match
+        const positions = gridCell.positions
+        const allPositionsFilled = positions.every(pos => pos !== null)
+        
+        if (allPositionsFilled) {
+          const firstItemType = positions[0]
+          const allSameType = positions.every(pos => pos === firstItemType)
+          
+          if (allSameType && !gridCell.isEliminating) {
+            missedMatches++
+            console.log(`🎯 MISSED MATCH DETECTED at (${row},${col}): 3x ${firstItemType} - Auto-eliminating!`)
+            
+            // Delay elimination slightly to stagger multiple missed matches
+            this.time.delayedCall(missedMatches * 200, () => {
+              this.eliminateItems(row, col, firstItemType)
+            })
+          }
+        }
+      }
+    }
+    
+    if (missedMatches > 0) {
+      console.log(`✅ Periodic scan found ${missedMatches} missed match(es) - Fixed!`)
+    }
   }
   
   // 🌍 Event 3: Tom shakes the screen with hammer
