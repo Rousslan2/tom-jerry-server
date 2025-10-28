@@ -234,6 +234,21 @@
         "type": "image",
         "key": "tom_cat_watching",
         "url": "https://cdn-game-mcp.gambo.ai/d01857d8-238b-4c52-ba91-51a633579ddf/images/tom_cat_watching.png"
+      },
+      {
+        "type": "image",
+        "key": "anvil_obstacle",
+        "url": "https://cdn-game-mcp.gambo.ai/4e829ae2-942d-4121-8202-5fb0600480a5/images/anvil_obstacle.png"
+      },
+      {
+        "type": "image",
+        "key": "safe_obstacle",
+        "url": "https://cdn-game-mcp.gambo.ai/ab06e9d8-9143-4a7d-947f-113193bbe735/images/safe_obstacle.png"
+      },
+      {
+        "type": "image",
+        "key": "piano_obstacle",
+        "url": "https://cdn-game-mcp.gambo.ai/e13f80a8-420a-4524-8968-d1fdf6ba358f/images/piano_obstacle.png"
       }
     ]
   },
@@ -278,6 +293,26 @@
         "type": "audio",
         "key": "level_complete",
         "url": "https://cdn-game-mcp.gambo.ai/dd0ce967-37c7-4c2d-8875-f9b2256ce3e2/sound_effects/level_complete.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "combo_x2",
+        "url": "https://cdn-game-mcp.gambo.ai/3410a22d-6522-4fc7-8355-0194622c4599/sound_effects/combo_x2.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "combo_x3",
+        "url": "https://cdn-game-mcp.gambo.ai/0bfda75d-c611-4592-b33b-35ab7b220d0f/sound_effects/combo_x3.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "combo_mega",
+        "url": "https://cdn-game-mcp.gambo.ai/7f017ba3-95c3-4204-ad72-a4404b1dafd3/sound_effects/combo_mega.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "score_gain",
+        "url": "https://cdn-game-mcp.gambo.ai/26a662d9-241d-48be-9f66-39e4d162be3a/sound_effects/score_gain.mp3"
       }
     ]
   },

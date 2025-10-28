@@ -2,6 +2,7 @@ import Phaser from "phaser"
 import { LoadingScene } from "./scenes/LoadingScene.js"
 import { TitleScene } from "./scenes/TitleScene.js"
 import { ModeSelectionScene } from "./scenes/ModeSelectionScene.js"
+import { GameModeMenuScene } from "./scenes/GameModeMenuScene.js"
 import { GameScene } from "./scenes/GameScene.js"
 import { OnlineLobbyScene } from "./scenes/OnlineLobbyScene.js"
 import { VictoryScene } from "./scenes/VictoryScene.js"
@@ -101,7 +102,8 @@ const config = {
   scene: [
     LoadingScene, 
     TitleScene, 
-    ModeSelectionScene, 
+    ModeSelectionScene,
+    GameModeMenuScene,
     GameScene, 
     OnlineLobbyScene,
     VictoryScene, 

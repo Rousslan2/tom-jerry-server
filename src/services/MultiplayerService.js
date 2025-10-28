@@ -675,6 +675,53 @@ class MultiplayerService {
   hasOpponent() {
     return this.opponent !== null
   }
+
+  /**
+   * 🎮 NEW: Send game end result to opponent
+   * @param {string} result - 'win' or 'lose'
+   */
+  sendGameEnd(result) {
+    if (!this.roomCode) return
+    
+    console.log(`🏁 Sending game end: ${result}`)
+    
+    const gameEndData = {
+      result: result, // 'win' or 'lose'
+      timestamp: Date.now()
+    }
+    
+    // Use online server if available
+    if (this.useOnlineServer && this.socket && this.socket.connected) {
+      this.socket.emit('gameAction', {
+        roomCode: this.roomCode,
+        actionType: 'gameEnd',
+        actionData: gameEndData
+      })
+    } else {
+      // Local mode - broadcast to other tabs
+      if (this.broadcastChannel) {
+        this.broadcastChannel.postMessage({
+          type: 'gameAction',
+          roomCode: this.roomCode,
+          playerId: this.playerId,
+          actionData: {
+            type: 'gameEnd',
+            ...gameEndData
+          },
+          timestamp: Date.now()
+        })
+      }
+      
+      // Also use localStorage for reliability
+      const actionKey = `gameRoom_${this.roomCode}_action`
+      this.roomStorage.setItem(actionKey, JSON.stringify({
+        type: 'gameEnd',
+        playerId: this.playerId,
+        ...gameEndData,
+        timestamp: Date.now()
+      }))
+    }
+  }
 }
 
 // Export singleton instance

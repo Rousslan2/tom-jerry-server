@@ -60,23 +60,53 @@
       "value": 1000,
       "type": "number",
       "description": "Restock delay time (milliseconds)"
+    },
+    "targetItemSpawnChanceStart": {
+      "value": 35,
+      "type": "number",
+      "description": "Target item spawn chance at game start (%)"
+    },
+    "targetItemSpawnChanceRefill": {
+      "value": 40,
+      "type": "number",
+      "description": "Target item spawn chance on refill (%)"
+    },
+    "obstacleSpawnChance": {
+      "value": 20,
+      "type": "number",
+      "description": "Obstacle item spawn chance (%)"
+    },
+    "obstacleSpawnIntervalMin": {
+      "value": 15,
+      "type": "number",
+      "description": "Minimum obstacle spawn interval (seconds)"
+    },
+    "obstacleSpawnIntervalMax": {
+      "value": 25,
+      "type": "number",
+      "description": "Maximum obstacle spawn interval (seconds)"
+    },
+    "obstacleFirstSpawnDelayMin": {
+      "value": 8,
+      "type": "number",
+      "description": "Minimum delay before first obstacle (seconds)"
+    },
+    "obstacleFirstSpawnDelayMax": {
+      "value": 12,
+      "type": "number",
+      "description": "Maximum delay before first obstacle (seconds)"
     }
   },
   "levelConfig": {
-    "targetMilk": {
-      "value": 12,
-      "type": "number",
-      "description": "Target milk count"
+    "possibleTargets": {
+      "value": ["milk_box", "chips_bag", "cola_bottle", "yogurt_cups", "energy_drinks", "coffee_cans", "candy_jars", "instant_noodles", "juice_bottles"],
+      "type": "array",
+      "description": "Possible target items - will be randomly selected"
     },
-    "targetChips": {
-      "value": 9,
-      "type": "number",
-      "description": "Target broom count"
-    },
-    "targetCola": {
-      "value": 6,
-      "type": "number",
-      "description": "Target cola count"
+    "targetCounts": {
+      "value": [12, 9, 6],
+      "type": "array",
+      "description": "Target counts for 3 objectives"
     },
     "maxMoves": {
       "value": 50,

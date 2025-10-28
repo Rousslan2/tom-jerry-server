@@ -14,10 +14,20 @@ export class GameScene extends Phaser.Scene {
     this.gameMode = 'single' // 'single' or 'online'
     this.isHost = false
     
+    // 🎮 NEW: Game mode type (classic, time_attack, endless, zen)
+    this.selectedGameMode = 'classic'
+    
+    // 🎯 NEW: Generate random level targets!
+    this.generateRandomTargets()
+    
     // Game state
     this.gameOver = false
     this.levelComplete = false
     this.currentMoves = 0
+    
+    // ⏱️ NEW: Timer for Time Attack mode
+    this.gameTimer = null
+    this.timeRemaining = 120 // 2 minutes in seconds
     
     // Grid system
     this.gridData = []
@@ -41,8 +51,9 @@ export class GameScene extends Phaser.Scene {
       'cola_bottle': 0
     }
     
-    // Item type mapping
+    // Item type mapping - BEAUCOUP PLUS D'ITEMS ! 🎨
     this.itemTypes = [
+      // Original items
       'milk_box',
       'chips_bag', 
       'cola_bottle',
@@ -51,7 +62,16 @@ export class GameScene extends Phaser.Scene {
       'tissue_pack',
       'toothpaste',
       'bread',
-      'towel'
+      'towel',
+      // NEW: More variety! 🌟
+      'yogurt_cups',
+      'energy_drinks',
+      'coffee_cans',
+      'soap_dispensers',
+      'instant_noodles',
+      'shampoo_bottles',
+      'juice_bottles',
+      'candy_jars'
     ]
     
     // Target tracking
@@ -64,8 +84,33 @@ export class GameScene extends Phaser.Scene {
       'tissue_pack': 0,
       'toothpaste': 0,
       'bread': 0,
-      'towel': 0
+      'towel': 0,
+      'yogurt_cups': 0,
+      'energy_drinks': 0,
+      'coffee_cans': 0,
+      'soap_dispensers': 0,
+      'instant_noodles': 0,
+      'shampoo_bottles': 0,
+      'juice_bottles': 0,
+      'candy_jars': 0
     }
+  }
+
+  // 🎯 Generate random level targets from available items
+  generateRandomTargets() {
+    const possibleTargets = levelConfig.possibleTargets.value
+    const targetCounts = levelConfig.targetCounts.value
+    
+    // Shuffle and select 3 random items as targets
+    const shuffled = Phaser.Utils.Array.Shuffle([...possibleTargets])
+    
+    this.levelTargets = [
+      { type: shuffled[0], count: targetCounts[0] },
+      { type: shuffled[1], count: targetCounts[1] },
+      { type: shuffled[2], count: targetCounts[2] }
+    ]
+    
+    console.log('🎯 New Random Targets:', this.levelTargets)
   }
 
   // Receive scene startup parameters
@@ -73,10 +118,16 @@ export class GameScene extends Phaser.Scene {
     // Always reinitialize game state when scene starts
     this.initializeGameState()
     
-    // Set game mode
+    // Set game mode (single/online)
     if (data && data.mode) {
       this.gameMode = data.mode
       this.isHost = data.isHost || false
+    }
+    
+    // 🎮 NEW: Set game mode type (classic/time_attack/endless/zen)
+    if (data && data.gameMode) {
+      this.selectedGameMode = data.gameMode
+      console.log('🎮 Game Mode:', this.selectedGameMode)
     }
   }
 
@@ -85,6 +136,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
+    // 🎵 Stop ALL other scene music to prevent overlap!
+    this.stopAllOtherMusic()
+    
     // Stop title scene music if playing
     const titleScene = this.scene.get('TitleScene')
     if (titleScene && titleScene.backgroundMusic && titleScene.backgroundMusic.isPlaying) {
@@ -112,6 +166,14 @@ export class GameScene extends Phaser.Scene {
     if (this.gameMode === 'online') {
       this.setupMultiplayerSync()
     }
+    
+    // ⏱️ Start timer for Time Attack mode
+    if (this.selectedGameMode === 'time_attack') {
+      this.startGameTimer()
+    }
+    
+    // 🎬 Start obstacle spawn timer - spawn Tom & Jerry obstacles regularly
+    this.startObstacleSpawnTimer()
   }
 
   createBackground() {
@@ -609,11 +671,11 @@ export class GameScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5, 0.5).setDepth(2100)
     
-    // Specific target display - relayout in top area
+    // 🎯 Use random targets!
     const targets = [
-      { type: 'milk_box', target: levelConfig.targetMilk.value, x: screenWidth * 0.08 },
-      { type: 'chips_bag', target: levelConfig.targetChips.value, x: screenWidth * 0.15 },
-      { type: 'cola_bottle', target: levelConfig.targetCola.value, x: screenWidth * 0.22 }
+      { type: this.levelTargets[0].type, target: this.levelTargets[0].count, x: screenWidth * 0.08 },
+      { type: this.levelTargets[1].type, target: this.levelTargets[1].count, x: screenWidth * 0.15 },
+      { type: this.levelTargets[2].type, target: this.levelTargets[2].count, x: screenWidth * 0.22 }
     ]
     
     this.targetDisplays = []
@@ -653,21 +715,66 @@ export class GameScene extends Phaser.Scene {
   createMoveCounter() {
     const screenWidth = this.cameras.main.width
     
-    // Cute move counter background - blue gradient
+    // 🎮 For Endless/Zen mode, show different UI
+    if (this.selectedGameMode === 'endless' || this.selectedGameMode === 'zen') {
+      // Show move count without limit
+      this.moveCounterBg = this.add.graphics()
+      this.moveCounterBg.fillGradientStyle(0x9370DB, 0x9370DB, 0xBA55D3, 0xBA55D3, 0.95)
+      this.moveCounterBg.fillRoundedRect(screenWidth * 0.65, 20, screenWidth * 0.3, 60, 15)
+      
+      this.moveCounterBg.lineStyle(3, 0xFFFFFF, 0.9)
+      this.moveCounterBg.strokeRoundedRect(screenWidth * 0.65, 20, screenWidth * 0.3, 60, 15)
+      this.moveCounterBg.setDepth(2000)
+      
+      const modeIcon = this.selectedGameMode === 'endless' ? '♾️' : '🏆'
+      this.moveCounterText = this.add.text(screenWidth * 0.8, 50, `${modeIcon} Moves: ${this.currentMoves}`, {
+        fontSize: `${window.getResponsiveFontSize(18)}px`,
+        fontFamily: window.getGameFont(),
+        color: '#FFFFFF',
+        stroke: '#4B0082',
+        strokeThickness: 2,
+        align: 'center',
+        fontStyle: 'bold'
+      }).setOrigin(0.5, 0.5).setDepth(2100)
+      return
+    }
+    
+    // ⏱️ For Time Attack mode, show timer instead
+    if (this.selectedGameMode === 'time_attack') {
+      this.moveCounterBg = this.add.graphics()
+      this.moveCounterBg.fillGradientStyle(0xFF6347, 0xFF6347, 0xFF7F50, 0xFF7F50, 0.95)
+      this.moveCounterBg.fillRoundedRect(screenWidth * 0.65, 20, screenWidth * 0.3, 60, 15)
+      
+      this.moveCounterBg.lineStyle(3, 0xFFFFFF, 0.9)
+      this.moveCounterBg.strokeRoundedRect(screenWidth * 0.65, 20, screenWidth * 0.3, 60, 15)
+      this.moveCounterBg.setDepth(2000)
+      
+      this.moveCounterText = this.add.text(screenWidth * 0.8, 50, `⏱️ Time: 2:00`, {
+        fontSize: `${window.getResponsiveFontSize(18)}px`,
+        fontFamily: window.getGameFont(),
+        color: '#FFFFFF',
+        stroke: '#8B0000',
+        strokeThickness: 2,
+        align: 'center',
+        fontStyle: 'bold'
+      }).setOrigin(0.5, 0.5).setDepth(2100)
+      return
+    }
+    
+    // 🏃 Classic mode - show moves with limit
     this.moveCounterBg = this.add.graphics()
-    this.moveCounterBg.fillGradientStyle(0x87CEEB, 0x87CEEB, 0xADD8E6, 0xADD8E6, 0.95)  // Slightly increase opacity
+    this.moveCounterBg.fillGradientStyle(0x87CEEB, 0x87CEEB, 0xADD8E6, 0xADD8E6, 0.95)
     this.moveCounterBg.fillRoundedRect(screenWidth * 0.65, 20, screenWidth * 0.3, 60, 15)
     
-    // Add cute white border
     this.moveCounterBg.lineStyle(3, 0xFFFFFF, 0.9)
     this.moveCounterBg.strokeRoundedRect(screenWidth * 0.65, 20, screenWidth * 0.3, 60, 15)
-    this.moveCounterBg.setDepth(2000) // Ensure UI is on top layer
+    this.moveCounterBg.setDepth(2000)
     
     this.moveCounterText = this.add.text(screenWidth * 0.8, 50, `✨ Moves: ${this.currentMoves}/${levelConfig.maxMoves.value} ✨`, {
       fontSize: `${window.getResponsiveFontSize(18)}px`,
-      fontFamily: window.getGameFont(),  // Cute font
+      fontFamily: window.getGameFont(),
       color: '#FFFFFF',
-      stroke: '#4169E1',  // Royal blue stroke
+      stroke: '#4169E1',
       strokeThickness: 2,
       align: 'center',
       fontStyle: 'bold'
@@ -791,11 +898,11 @@ export class GameScene extends Phaser.Scene {
     const itemSpacing = screenWidth * 0.06
     const iconY = 138
     
-    // Milk
-    const milkIcon = this.add.image(baseX, iconY, 'milk_box').setScale(0.042).setDepth(2100)
-    this.applyTomJerryItemEnhancement(milkIcon)
-    this.applyHighQualityRendering(milkIcon)
-    this.opponentMilkText = this.add.text(baseX, iconY + 26, `0/${levelConfig.targetMilk.value}`, {
+    // 🎯 Use same random targets for opponent
+    const target1Icon = this.add.image(baseX, iconY, this.levelTargets[0].type).setScale(0.042).setDepth(2100)
+    this.applyTomJerryItemEnhancement(target1Icon)
+    this.applyHighQualityRendering(target1Icon)
+    this.opponentMilkText = this.add.text(baseX, iconY + 26, `0/${this.levelTargets[0].count}`, {
       fontSize: `${window.getResponsiveFontSize(12)}px`,
       fontFamily: window.getGameFont(),
       color: '#FFFFFF',
@@ -805,11 +912,10 @@ export class GameScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5, 0.5).setDepth(2100)
     
-    // Chips
-    const chipsIcon = this.add.image(baseX + itemSpacing, iconY, 'chips_bag').setScale(0.042).setDepth(2100)
-    this.applyTomJerryItemEnhancement(chipsIcon)
-    this.applyHighQualityRendering(chipsIcon)
-    this.opponentChipsText = this.add.text(baseX + itemSpacing, iconY + 26, `0/${levelConfig.targetChips.value}`, {
+    const target2Icon = this.add.image(baseX + itemSpacing, iconY, this.levelTargets[1].type).setScale(0.042).setDepth(2100)
+    this.applyTomJerryItemEnhancement(target2Icon)
+    this.applyHighQualityRendering(target2Icon)
+    this.opponentChipsText = this.add.text(baseX + itemSpacing, iconY + 26, `0/${this.levelTargets[1].count}`, {
       fontSize: `${window.getResponsiveFontSize(12)}px`,
       fontFamily: window.getGameFont(),
       color: '#FFFFFF',
@@ -819,11 +925,10 @@ export class GameScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5, 0.5).setDepth(2100)
     
-    // Cola
-    const colaIcon = this.add.image(baseX + itemSpacing * 2, iconY, 'cola_bottle').setScale(0.042).setDepth(2100)
-    this.applyTomJerryItemEnhancement(colaIcon)
-    this.applyHighQualityRendering(colaIcon)
-    this.opponentColaText = this.add.text(baseX + itemSpacing * 2, iconY + 26, `0/${levelConfig.targetCola.value}`, {
+    const target3Icon = this.add.image(baseX + itemSpacing * 2, iconY, this.levelTargets[2].type).setScale(0.042).setDepth(2100)
+    this.applyTomJerryItemEnhancement(target3Icon)
+    this.applyHighQualityRendering(target3Icon)
+    this.opponentColaText = this.add.text(baseX + itemSpacing * 2, iconY + 26, `0/${this.levelTargets[2].count}`, {
       fontSize: `${window.getResponsiveFontSize(12)}px`,
       fontFamily: window.getGameFont(),
       color: '#FFFFFF',
@@ -965,17 +1070,18 @@ export class GameScene extends Phaser.Scene {
     // Randomly shuffle position array
     Phaser.Utils.Array.Shuffle(allPositions)
     
-    // Target items that need to be collected
-    const targetItems = ['milk_box', 'chips_bag', 'cola_bottle']
+    // 🎯 Get current level target types from random targets!
+    const targetTypes = this.levelTargets.map(t => t.type)
     
     // Fill first filledPositions positions
     for (let i = 0; i < filledPositions; i++) {
       const pos = allPositions[i]
       let itemType
       
-      // First 15 items: guarantee mix of target items (50% chance each)
-      if (i < 15 && Math.random() < 0.5) {
-        itemType = targetItems[Phaser.Math.Between(0, targetItems.length - 1)]
+      // 🎯 HARDER: First 20 items have 50% chance to be target items
+      // Reduced from 65% to make it more challenging!
+      if (i < 20 && Math.random() < gameConfig.targetItemSpawnChanceStart.value / 100) {
+        itemType = targetTypes[Phaser.Math.Between(0, targetTypes.length - 1)]
       } else {
         itemType = this.getRandomItemType()
       }
@@ -985,6 +1091,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   getRandomItemType() {
+    // 🚧 20% chance to spawn obstacle items (Tom & Jerry obstacles!)
+    if (Math.random() < gameConfig.obstacleSpawnChance.value / 100) {
+      const obstacles = ['anvil_obstacle', 'safe_obstacle', 'piano_obstacle']
+      return obstacles[Phaser.Math.Between(0, obstacles.length - 1)]
+    }
+    
     return this.itemTypes[Phaser.Math.Between(0, this.itemTypes.length - 1)]
   }
 
@@ -1008,9 +1120,14 @@ export class GameScene extends Phaser.Scene {
     
     // Create item sprite, initially set to invisible
     const item = this.add.image(slot.x, slot.y, itemType)
-      .setInteractive({ draggable: true })
       .setScale(0)  // Start from 0, prepare for pop-in animation
       .setAlpha(0)  // Initially transparent
+    
+    // 🚧 Tom & Jerry obstacle items cannot be dragged!
+    const isObstacle = itemType === 'anvil_obstacle' || itemType === 'safe_obstacle' || itemType === 'piano_obstacle'
+    if (!isObstacle) {
+      item.setInteractive({ draggable: true })
+    }
     
     // Apply background removal effect to Tom and Jerry retro cartoon items
     this.applyTomJerryItemEnhancement(item)
@@ -1024,15 +1141,46 @@ export class GameScene extends Phaser.Scene {
     // Apply high-quality rendering to item
     this.applyHighQualityRendering(item)
     
-    // Cartoon-style pop-in animation - Bigger items for 3-row grid!
-    this.tweens.add({
-      targets: item,
-      scale: 0.075,  // 40% bigger for better visibility with 3-row grid (was 0.053 for 5-row)
-      alpha: 1,      // Completely opaque
-      duration: 300,
-      ease: 'Back.easeOut.config(2)',  // Elastic effect
-      delay: Phaser.Math.Between(0, 200)  // Random delay to stagger item appearances
-    })
+    // 🎬 SPECIAL: Obstacle items fall from sky with Tom & Jerry style animation!
+    if (isObstacle) {
+      // Start from top of screen
+      const startY = -100
+      item.y = startY
+      item.setScale(0.075)
+      item.setAlpha(1)
+      
+      // Fall from sky with bounce
+      this.tweens.add({
+        targets: item,
+        y: slot.y + offset.y,
+        duration: 600,
+        ease: 'Bounce.easeOut',
+        delay: Phaser.Math.Between(0, 300)
+      })
+      
+      // Rotate while falling
+      this.tweens.add({
+        targets: item,
+        rotation: Math.PI * 2,
+        duration: 600,
+        ease: 'Linear',
+        delay: Phaser.Math.Between(0, 300),
+        onComplete: () => {
+          // Impact effect when landing!
+          this.createObstacleImpactEffect(item.x, item.y)
+        }
+      })
+    } else {
+      // Cartoon-style pop-in animation for normal items - Bigger items for 3-row grid!
+      this.tweens.add({
+        targets: item,
+        scale: 0.075,  // 40% bigger for better visibility with 3-row grid (was 0.053 for 5-row)
+        alpha: 1,      // Completely opaque
+        duration: 300,
+        ease: 'Back.easeOut.config(2)',  // Elastic effect
+        delay: Phaser.Math.Between(0, 200)  // Random delay to stagger item appearances
+      })
+    }
     
     // Store item information
     item.itemType = itemType
@@ -1055,6 +1203,126 @@ export class GameScene extends Phaser.Scene {
     return true
   }
 
+  // 🎬 Start obstacle spawn timer - spawn obstacles from sky regularly
+  startObstacleSpawnTimer() {
+    // Initial delay before first obstacle (configurable)
+    const minDelay = gameConfig.obstacleFirstSpawnDelayMin.value * 1000
+    const maxDelay = gameConfig.obstacleFirstSpawnDelayMax.value * 1000
+    const initialDelay = Phaser.Math.Between(minDelay, maxDelay)
+    
+    console.log(`🎬 First obstacle will spawn in ${initialDelay / 1000} seconds`)
+    
+    this.time.delayedCall(initialDelay, () => {
+      this.spawnRandomObstacle()
+      
+      // Then spawn obstacles at regular intervals (configurable)
+      const minInterval = gameConfig.obstacleSpawnIntervalMin.value * 1000
+      const maxInterval = gameConfig.obstacleSpawnIntervalMax.value * 1000
+      
+      this.obstacleSpawnTimer = this.time.addEvent({
+        delay: Phaser.Math.Between(minInterval, maxInterval),
+        callback: () => {
+          this.spawnRandomObstacle()
+          // Randomize next spawn interval
+          this.obstacleSpawnTimer.delay = Phaser.Math.Between(minInterval, maxInterval)
+          console.log(`⏰ Next obstacle in ${this.obstacleSpawnTimer.delay / 1000} seconds`)
+        },
+        loop: true
+      })
+    })
+  }
+  
+  // 🎯 Spawn a random Tom & Jerry obstacle from the sky
+  spawnRandomObstacle() {
+    // Don't spawn obstacles if game is over
+    if (this.gameOver || this.levelComplete) {
+      return
+    }
+    
+    const obstacles = ['anvil_obstacle', 'safe_obstacle', 'piano_obstacle']
+    const obstacleType = obstacles[Phaser.Math.Between(0, obstacles.length - 1)]
+    
+    // Find a random slot with at least one empty position
+    const rows = gameConfig.gridRows.value
+    const cols = gameConfig.gridCols.value
+    
+    const availableSlots = []
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const gridCell = this.gridData[row][col]
+        // Check if has at least one empty position
+        if (gridCell.positions.some(pos => pos === null)) {
+          availableSlots.push({ row, col })
+        }
+      }
+    }
+    
+    if (availableSlots.length === 0) {
+      console.log('⚠️ No available slots for obstacle spawn')
+      return
+    }
+    
+    // Random select a slot
+    const targetSlot = availableSlots[Phaser.Math.Between(0, availableSlots.length - 1)]
+    
+    // Add obstacle to this slot
+    const success = this.addItemToSlot(targetSlot.row, targetSlot.col, obstacleType)
+    
+    if (success) {
+      console.log(`🎬 ${obstacleType} spawned from sky at (${targetSlot.row}, ${targetSlot.col})`)
+    }
+  }
+  
+  // 🎬 Create impact effect when obstacle lands
+  createObstacleImpactEffect(x, y) {
+    // Play impact sound
+    this.sound.play('item_drop', { volume: audioConfig.sfxVolume.value * 1.2 })
+    
+    // Dust cloud rings
+    const rings = []
+    for (let i = 0; i < 3; i++) {
+      const ring = this.add.graphics()
+      ring.lineStyle(6 - i * 2, 0xAAAAAA, 0.8 - i * 0.2)
+      ring.strokeCircle(x, y, 10)
+      ring.setDepth(9999)
+      rings.push(ring)
+      
+      this.tweens.add({
+        targets: ring,
+        scaleX: 3 + i,
+        scaleY: 3 + i,
+        alpha: 0,
+        duration: 400 + i * 100,
+        ease: 'Cubic.easeOut',
+        delay: i * 50,
+        onComplete: () => ring.destroy()
+      })
+    }
+    
+    // Stars flying out
+    const starEffects = ['⭐', '💫', '✨']
+    for (let i = 0; i < 8; i++) {
+      const star = this.add.text(x, y, starEffects[Math.floor(Math.random() * starEffects.length)], {
+        fontSize: '18px',
+        color: '#FFD700'
+      }).setOrigin(0.5, 0.5).setDepth(10000)
+      
+      const angle = (i / 8) * Math.PI * 2
+      const distance = 50
+      
+      this.tweens.add({
+        targets: star,
+        x: x + Math.cos(angle) * distance,
+        y: y + Math.sin(angle) * distance,
+        alpha: 0,
+        rotation: Math.PI,
+        duration: 500,
+        ease: 'Cubic.easeOut',
+        onComplete: () => star.destroy()
+      })
+    }
+  }
+  
   // Update position indicator color
   updatePositionIndicator(row, col, positionIndex, itemType) {
     // No longer use position indicators, keep simple line separator design
@@ -1087,6 +1355,13 @@ export class GameScene extends Phaser.Scene {
       // Increase move counter
       this.currentMoves++
       this.updateMoveCounter()
+      
+      // 🔄 Check for deadlock ONLY every 5 moves (not every move!)
+      if (this.currentMoves % 5 === 0) {
+        this.time.delayedCall(500, () => {
+          this.checkForDeadlock()
+        })
+      }
       
       // Check game end conditions
       this.checkGameEnd()
@@ -1275,14 +1550,21 @@ export class GameScene extends Phaser.Scene {
     // Update score display
     this.updateScoreDisplay()
     
-    // Play appropriate sound based on combo level
+    // ⭐ Play appropriate sound based on combo level - NEW SOUNDS! 🎵
     if (this.combo >= 5) {
-      this.sound.play('match_eliminate', { volume: audioConfig.sfxVolume.value, rate: 1.5 })
+      this.sound.play('combo_mega', { volume: audioConfig.sfxVolume.value })
     } else if (this.combo >= 3) {
-      this.sound.play('match_eliminate', { volume: audioConfig.sfxVolume.value, rate: 1.3 })
+      this.sound.play('combo_x3', { volume: audioConfig.sfxVolume.value })
+    } else if (this.combo >= 2) {
+      this.sound.play('combo_x2', { volume: audioConfig.sfxVolume.value })
     } else {
       this.sound.play('match_eliminate', { volume: audioConfig.sfxVolume.value })
     }
+    
+    // Also play score gain sound for extra satisfaction! 💰
+    this.time.delayedCall(150, () => {
+      this.sound.play('score_gain', { volume: audioConfig.sfxVolume.value * 0.5 })
+    })
     
     // Update elimination count
     this.eliminatedCounts[itemType] += gameConfig.maxItemsPerSlot.value
@@ -1331,10 +1613,95 @@ export class GameScene extends Phaser.Scene {
       this.updatePositionIndicator(row, col, i, null)
     }
     
+    // 🚧 Check adjacent slots for obstacles to unlock
+    this.unlockAdjacentObstacles(row, col)
+    
     // Delay restock
     this.time.delayedCall(gameConfig.refillDelay.value, () => {
       this.refillSlot(row, col)
     })
+  }
+  
+  // 🚧 Unlock obstacles in adjacent slots when a match is made
+  unlockAdjacentObstacles(row, col) {
+    const rows = gameConfig.gridRows.value
+    const cols = gameConfig.gridCols.value
+    
+    // Check all adjacent slots (including diagonals)
+    const directions = [
+      [-1, -1], [-1, 0], [-1, 1],
+      [0, -1],           [0, 1],
+      [1, -1],  [1, 0],  [1, 1]
+    ]
+    
+    directions.forEach(([dRow, dCol]) => {
+      const adjRow = row + dRow
+      const adjCol = col + dCol
+      
+      // Check bounds
+      if (adjRow >= 0 && adjRow < rows && adjCol >= 0 && adjCol < cols) {
+        const adjCell = this.gridData[adjRow][adjCol]
+        
+        // Check each position in adjacent slot for Tom & Jerry obstacles
+        adjCell.items.forEach((item, index) => {
+          if (item.itemType === 'anvil_obstacle' || item.itemType === 'safe_obstacle' || item.itemType === 'piano_obstacle') {
+            // 🔓 Unlock this obstacle!
+            this.unlockObstacle(item, adjRow, adjCol, index)
+          }
+        })
+      }
+    })
+  }
+  
+  // 🔓 Unlock a single obstacle item
+  unlockObstacle(item, row, col, position) {
+    const oldType = item.itemType
+    
+    // Transform obstacle into a random normal item
+    const newItemType = this.itemTypes[Phaser.Math.Between(0, this.itemTypes.length - 1)]
+    
+    // Visual unlock animation
+    this.tweens.add({
+      targets: item,
+      scale: 0.09,
+      duration: 200,
+      ease: 'Back.easeOut',
+      yoyo: true,
+      onComplete: () => {
+        // Change to new item type
+        item.setTexture(newItemType)
+        item.itemType = newItemType
+        item.clearTint() // Remove gray tint
+        item.setInteractive({ draggable: true }) // Make it draggable
+        
+        // Update grid data
+        this.gridData[row][col].positions[position] = newItemType
+        
+        // Apply Tom & Jerry enhancement
+        this.applyTomJerryItemEnhancement(item)
+        
+        // Sparkle effect
+        const sparkles = ['✨', '💫', '⭐', '🌟']
+        for (let i = 0; i < 5; i++) {
+          const sparkle = this.add.text(item.x, item.y, sparkles[Math.floor(Math.random() * sparkles.length)], {
+            fontSize: '20px',
+            color: '#FFD700'
+          }).setOrigin(0.5, 0.5).setDepth(10000)
+          
+          this.tweens.add({
+            targets: sparkle,
+            y: sparkle.y - 30,
+            alpha: 0,
+            duration: 600,
+            delay: i * 100,
+            onComplete: () => sparkle.destroy()
+          })
+        }
+      }
+    })
+    
+    // Play unlock sound
+    this.sound.play('item_drop', { volume: audioConfig.sfxVolume.value })
   }
 
   createCartoonEliminationEffect(x, y, itemType, earnedPoints) {
@@ -1532,26 +1899,24 @@ export class GameScene extends Phaser.Scene {
     // Always refill with 3 items to keep gameplay flowing
     const itemCount = 3
     
-    // Target items that need to be collected (milk, chips, cola)
-    const targetItems = ['milk_box', 'chips_bag', 'cola_bottle']
+    // 🎯 Get all level targets (now using random targets from levelTargets!)
+    const targetTypes = this.levelTargets.map(t => t.type)
     
     // Check which targets are not yet completed
-    const incompleteTargets = targetItems.filter(itemType => {
-      const display = this.targetDisplays.find(d => d.type === itemType)
-      return display && this.eliminatedCounts[itemType] < display.target
+    const incompleteTargets = targetTypes.filter(itemType => {
+      const target = this.levelTargets.find(t => t.type === itemType)
+      return target && this.eliminatedCounts[itemType] < target.count
     })
-    
-    // Guarantee at least 1 target item if targets are incomplete
-    const guaranteeTargetItem = incompleteTargets.length > 0 && Math.random() < 0.6 // 60% chance
     
     for (let i = 0; i < itemCount; i++) {
       let itemType
       
-      // First item: 60% chance to be an incomplete target item
-      if (i === 0 && guaranteeTargetItem) {
+      // 🎯 HARDER: 55% chance for EACH item to be a target if needed
+      // Reduced from 70% to make it more challenging!
+      if (incompleteTargets.length > 0 && Math.random() < gameConfig.targetItemSpawnChanceRefill.value / 100) {
         itemType = incompleteTargets[Phaser.Math.Between(0, incompleteTargets.length - 1)]
       } else {
-        // Other items: random selection
+        // Other items: random selection from all types (includes 15% obstacle chance)
         itemType = this.getRandomItemType()
       }
       
@@ -1611,7 +1976,7 @@ export class GameScene extends Phaser.Scene {
       }
     }
     
-    // Listen for game actions (like background sync)
+    // Listen for game actions (like background sync, game end)
     multiplayerService.onGameAction = (actionData) => {
       if (actionData && actionData.type === 'backgroundSync') {
         console.log('📥 Guest received background:', actionData.background)
@@ -1622,6 +1987,34 @@ export class GameScene extends Phaser.Scene {
         if (!this.isHost && this.backgroundImage) {
           // Recreate background with synced data
           this.updateBackgroundImage(actionData.background)
+        }
+      }
+      
+      // 🎮 NEW: Handle game end from opponent
+      if (actionData && actionData.type === 'gameEnd') {
+        console.log('🏁 Opponent game ended:', actionData.result)
+        
+        // If opponent won, I lost!
+        if (actionData.result === 'win' && !this.gameOver && !this.levelComplete) {
+          this.gameOver = true
+          this.sound.play('game_over', { volume: audioConfig.sfxVolume.value })
+          this.scene.launch('GameOverScene', {
+            score: this.score,
+            moves: this.currentMoves,
+            reason: 'Opponent Won!'
+          })
+        }
+        
+        // If opponent lost, I won!
+        if (actionData.result === 'lose' && !this.gameOver && !this.levelComplete) {
+          this.levelComplete = true
+          this.sound.play('level_complete', { volume: audioConfig.sfxVolume.value })
+          this.scene.launch('VictoryScene', { 
+            score: this.score,
+            moves: this.currentMoves,
+            maxMoves: levelConfig.maxMoves.value,
+            reason: 'Opponent Lost!'
+          })
         }
       }
     }
@@ -1733,10 +2126,23 @@ export class GameScene extends Phaser.Scene {
   }
 
   updateMoveCounter() {
+    // 🎮 Update based on game mode
+    if (this.selectedGameMode === 'endless' || this.selectedGameMode === 'zen') {
+      const modeIcon = this.selectedGameMode === 'endless' ? '♾️' : '🏆'
+      this.moveCounterText.setText(`${modeIcon} Moves: ${this.currentMoves}`)
+      return
+    }
+    
+    if (this.selectedGameMode === 'time_attack') {
+      // Timer is updated in updateGameTimer method
+      return
+    }
+    
+    // Classic mode
     this.moveCounterText.setText(`✨ Moves: ${this.currentMoves}/${levelConfig.maxMoves.value} ✨`)
     
     if (this.currentMoves >= levelConfig.maxMoves.value) {
-      this.moveCounterText.setColor('#FF6347')  // Softer red
+      this.moveCounterText.setColor('#FF6347')
       this.moveCounterText.setText(`⚠️ Moves: ${this.currentMoves}/${levelConfig.maxMoves.value} ⚠️`)
     }
   }
@@ -1755,28 +2161,313 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
+  // 🔄 Check if game is in a deadlock (no possible matches)
+  checkForDeadlock() {
+    if (this.gameOver || this.levelComplete) return
+    
+    // Count total empty slots and items
+    const stats = this.getGridStats()
+    
+    // 🎯 SMART CHECK: Only shuffle if truly stuck
+    // Don't shuffle if:
+    // 1. There are many empty slots (items can be moved around)
+    // 2. Grid is not full enough to be stuck
+    if (stats.emptySlots > stats.totalSlots * 0.3) {
+      // More than 30% empty, plenty of room to move
+      return
+    }
+    
+    const possibleMatches = this.findPossibleMatches()
+    
+    // Only shuffle if REALLY no moves (0 possible matches)
+    // AND grid is pretty full
+    if (possibleMatches === 0 && stats.emptySlots < stats.totalSlots * 0.2) {
+      console.log('⚠️ TRUE DEADLOCK! No moves possible. Shuffling...')
+      this.shuffleBoard()
+    }
+  }
+  
+  // 📊 Get grid statistics
+  getGridStats() {
+    const rows = gameConfig.gridRows.value
+    const cols = gameConfig.gridCols.value
+    let emptySlots = 0
+    let totalSlots = 0
+    
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const gridCell = this.gridData[row][col]
+        totalSlots += 3 // Each slot has 3 positions
+        
+        gridCell.positions.forEach(pos => {
+          if (pos === null) {
+            emptySlots++
+          }
+        })
+      }
+    }
+    
+    return { emptySlots, totalSlots }
+  }
+  
+  // 🔍 Find how many possible matches exist (IMPROVED!)
+  findPossibleMatches() {
+    let possibleMatches = 0
+    const rows = gameConfig.gridRows.value
+    const cols = gameConfig.gridCols.value
+    
+    // Strategy 1: Check slots with 2 same items that need 1 more
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const gridCell = this.gridData[row][col]
+        
+        // Count items by type in this slot
+        const typeCounts = {}
+        gridCell.positions.forEach(itemType => {
+          if (itemType) {
+            typeCounts[itemType] = (typeCounts[itemType] || 0) + 1
+          }
+        })
+        
+        // If we have 2 of same type, check if we can complete the match
+        Object.keys(typeCounts).forEach(itemType => {
+          if (typeCounts[itemType] === 2) {
+            // Check if this item type exists ANYWHERE on the board
+            if (this.itemExistsOnBoard(itemType, row, col)) {
+              possibleMatches++
+            }
+          }
+        })
+      }
+    }
+    
+    // Strategy 2: Check slots with empty space that can receive matching items
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const gridCell = this.gridData[row][col]
+        const emptyPositions = gridCell.positions.filter(p => p === null).length
+        
+        if (emptyPositions > 0) {
+          // This slot has space, check what can be moved here
+          const availableTypes = this.getAvailableItemTypes()
+          availableTypes.forEach(itemType => {
+            const countInSlot = gridCell.positions.filter(p => p === itemType).length
+            // Can we make a match by moving items here?
+            if (countInSlot > 0 && this.itemExistsOnBoard(itemType, row, col)) {
+              possibleMatches++
+            }
+          })
+        }
+      }
+    }
+    
+    return possibleMatches
+  }
+  
+  // 🔎 Check if item type exists anywhere on board (excluding specific slot)
+  itemExistsOnBoard(itemType, excludeRow, excludeCol) {
+    const rows = gameConfig.gridRows.value
+    const cols = gameConfig.gridCols.value
+    
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        // Skip the excluded slot
+        if (row === excludeRow && col === excludeCol) continue
+        
+        const gridCell = this.gridData[row][col]
+        if (gridCell.positions.includes(itemType)) {
+          return true
+        }
+      }
+    }
+    
+    return false
+  }
+  
+  // 📦 Get all item types currently on the board
+  getAvailableItemTypes() {
+    const types = new Set()
+    const rows = gameConfig.gridRows.value
+    const cols = gameConfig.gridCols.value
+    
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const gridCell = this.gridData[row][col]
+        gridCell.positions.forEach(itemType => {
+          if (itemType) {
+            types.add(itemType)
+          }
+        })
+      }
+    }
+    
+    return Array.from(types)
+  }
+  
+  // 🔄 Shuffle all items on the board
+  shuffleBoard() {
+    // Show shuffle warning
+    const screenWidth = this.cameras.main.width
+    const screenHeight = this.cameras.main.height
+    
+    const shuffleWarning = this.add.text(screenWidth / 2, screenHeight / 2, '🔄 NO MOVES LEFT!\nSHUFFLING...', {
+      fontSize: `${window.getResponsiveFontSize(36)}px`,
+      fontFamily: window.getGameFont(),
+      color: '#FFD700',
+      stroke: '#000000',
+      strokeThickness: 6,
+      align: 'center',
+      fontStyle: 'bold'
+    }).setOrigin(0.5, 0.5).setDepth(15000).setAlpha(0)
+    
+    // Fade in warning
+    this.tweens.add({
+      targets: shuffleWarning,
+      alpha: 1,
+      duration: 300,
+      ease: 'Power2'
+    })
+    
+    // Play shuffle sound
+    this.sound.play('item_pickup', { volume: audioConfig.sfxVolume.value })
+    
+    // Collect all items from grid
+    const allItems = []
+    const rows = gameConfig.gridRows.value
+    const cols = gameConfig.gridCols.value
+    
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const gridCell = this.gridData[row][col]
+        gridCell.items.forEach(item => {
+          allItems.push({
+            type: item.itemType,
+            sprite: item
+          })
+        })
+      }
+    }
+    
+    // Shuffle items array
+    Phaser.Utils.Array.Shuffle(allItems)
+    
+    // Animate items flying to center
+    allItems.forEach((itemData, index) => {
+      this.tweens.add({
+        targets: itemData.sprite,
+        x: screenWidth / 2,
+        y: screenHeight / 2,
+        scale: 0,
+        rotation: Math.PI * 2,
+        alpha: 0.5,
+        duration: 500,
+        delay: index * 10,
+        ease: 'Back.easeIn'
+      })
+    })
+    
+    // Wait for animation, then redistribute
+    this.time.delayedCall(800, () => {
+      // Clear all grid cells
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          this.gridData[row][col].positions = [null, null, null]
+          this.gridData[row][col].items = []
+        }
+      }
+      
+      // Destroy all item sprites
+      allItems.forEach(itemData => {
+        itemData.sprite.destroy()
+      })
+      
+      // Redistribute items
+      let itemIndex = 0
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          for (let position = 0; position < 3; position++) {
+            if (itemIndex < allItems.length) {
+              this.addItemToSlot(row, col, allItems[itemIndex].type, position)
+              itemIndex++
+            }
+          }
+        }
+      }
+      
+      // Remove warning
+      this.tweens.add({
+        targets: shuffleWarning,
+        alpha: 0,
+        duration: 300,
+        ease: 'Power2',
+        onComplete: () => {
+          shuffleWarning.destroy()
+        }
+      })
+    })
+  }
+
   checkGameEnd() {
-    // Check victory conditions - need to achieve all targets
-    const milkTarget = this.eliminatedCounts['milk_box'] >= levelConfig.targetMilk.value
-    const chipsTarget = this.eliminatedCounts['chips_bag'] >= levelConfig.targetChips.value
-    const colaTarget = this.eliminatedCounts['cola_bottle'] >= levelConfig.targetCola.value
-    const victoryConditionMet = milkTarget && chipsTarget && colaTarget
+    // 🎮 Endless/Zen mode - no game over conditions except target completion
+    if (this.selectedGameMode === 'endless' || this.selectedGameMode === 'zen') {
+      // Check if targets met (optional victory for these modes)
+      const target1Met = this.eliminatedCounts[this.levelTargets[0].type] >= this.levelTargets[0].count
+      const target2Met = this.eliminatedCounts[this.levelTargets[1].type] >= this.levelTargets[1].count
+      const target3Met = this.eliminatedCounts[this.levelTargets[2].type] >= this.levelTargets[2].count
+      const victoryConditionMet = target1Met && target2Met && target3Met
+      
+      if (victoryConditionMet && !this.levelComplete) {
+        this.levelComplete = true
+        this.sound.play('level_complete', { volume: audioConfig.sfxVolume.value })
+        this.scene.launch('VictoryScene', { 
+          score: this.score,
+          moves: this.currentMoves,
+          maxMoves: this.currentMoves,
+          mode: this.selectedGameMode
+        })
+      }
+      return // No move limit in these modes
+    }
+    
+    // 🎯 Check victory conditions using random targets!
+    const target1Met = this.eliminatedCounts[this.levelTargets[0].type] >= this.levelTargets[0].count
+    const target2Met = this.eliminatedCounts[this.levelTargets[1].type] >= this.levelTargets[1].count
+    const target3Met = this.eliminatedCounts[this.levelTargets[2].type] >= this.levelTargets[2].count
+    const victoryConditionMet = target1Met && target2Met && target3Met
     
     if (victoryConditionMet && !this.levelComplete) {
       this.levelComplete = true
       this.sound.play('level_complete', { volume: audioConfig.sfxVolume.value })
+      
+      // Stop timer for Time Attack mode
+      if (this.selectedGameMode === 'time_attack' && this.gameTimer) {
+        this.gameTimer.remove()
+      }
+      
+      // 🎮 MULTIPLAYER: If someone wins, opponent loses!
+      if (this.gameMode === 'online') {
+        multiplayerService.sendGameEnd('win')
+      }
+      
       this.scene.launch('VictoryScene', { 
         score: this.score,
         moves: this.currentMoves,
-        maxMoves: levelConfig.maxMoves.value
+        maxMoves: levelConfig.maxMoves.value,
+        mode: this.selectedGameMode
       })
       return
     }
     
-    // Check failure conditions
-    if (this.currentMoves >= levelConfig.maxMoves.value && !this.levelComplete) {
+    // Check failure conditions (only for classic mode, not time_attack which uses timer)
+    if (this.selectedGameMode === 'classic' && this.currentMoves >= levelConfig.maxMoves.value && !this.levelComplete) {
       this.gameOver = true
       this.sound.play('game_over', { volume: audioConfig.sfxVolume.value })
+      
+      // 🎮 MULTIPLAYER: If someone loses, tell opponent
+      if (this.gameMode === 'online') {
+        multiplayerService.sendGameEnd('lose')
+      }
+      
       this.scene.launch('GameOverScene', {
         score: this.score,
         moves: this.currentMoves
@@ -1784,12 +2475,83 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  // 🎵 Stop all music from other scenes to prevent overlap
+  stopAllOtherMusic() {
+    const allScenes = ['TitleScene', 'ModeSelectionScene', 'GameModeMenuScene', 'OnlineLobbyScene']
+    
+    allScenes.forEach(sceneKey => {
+      const scene = this.scene.get(sceneKey)
+      if (scene && scene.backgroundMusic) {
+        if (scene.backgroundMusic.isPlaying) {
+          scene.backgroundMusic.stop()
+          console.log(`🎵 Stopped music from ${sceneKey}`)
+        }
+      }
+    })
+  }
+
   playBackgroundMusic() {
+    // Don't play music if already playing
+    if (this.backgroundMusic && this.backgroundMusic.isPlaying) {
+      return
+    }
+    
     this.backgroundMusic = this.sound.add('tom_jerry_80s_retro_theme', {
       volume: audioConfig.musicVolume.value,
       loop: true
     })
     this.backgroundMusic.play()
+  }
+  
+  // ⏱️ Start game timer for Time Attack mode
+  startGameTimer() {
+    this.timeRemaining = 120 // 2 minutes
+    
+    this.gameTimer = this.time.addEvent({
+      delay: 1000, // 1 second
+      callback: this.updateGameTimer,
+      callbackScope: this,
+      loop: true
+    })
+  }
+  
+  // ⏱️ Update game timer display
+  updateGameTimer() {
+    if (this.gameOver || this.levelComplete) {
+      if (this.gameTimer) {
+        this.gameTimer.remove()
+      }
+      return
+    }
+    
+    this.timeRemaining--
+    
+    // Update display
+    const minutes = Math.floor(this.timeRemaining / 60)
+    const seconds = this.timeRemaining % 60
+    const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`
+    
+    this.moveCounterText.setText(`⏱️ Time: ${timeString}`)
+    
+    // Warning colors
+    if (this.timeRemaining <= 10) {
+      this.moveCounterText.setColor('#FF0000') // Red
+    } else if (this.timeRemaining <= 30) {
+      this.moveCounterText.setColor('#FF6347') // Orange
+    }
+    
+    // Time's up!
+    if (this.timeRemaining <= 0) {
+      this.gameTimer.remove()
+      this.gameOver = true
+      this.sound.play('game_over', { volume: audioConfig.sfxVolume.value })
+      
+      this.scene.launch('GameOverScene', {
+        score: this.score,
+        moves: this.currentMoves,
+        reason: 'Time is up!'
+      })
+    }
   }
 
   highlightAvailableSlots() {
@@ -1877,6 +2639,18 @@ export class GameScene extends Phaser.Scene {
   }
 
   shutdown() {
+    // Stop game timer if exists
+    if (this.gameTimer) {
+      this.gameTimer.remove()
+      this.gameTimer = null
+    }
+    
+    // 🎬 Stop obstacle spawn timer
+    if (this.obstacleSpawnTimer) {
+      this.obstacleSpawnTimer.remove()
+      this.obstacleSpawnTimer = null
+    }
+    
     // Stop game music when leaving this scene
     if (this.backgroundMusic && this.backgroundMusic.isPlaying) {
       this.backgroundMusic.stop()

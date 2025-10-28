@@ -210,12 +210,8 @@ export class ModeSelectionScene extends Phaser.Scene {
       buttonText.setScale(1.1)
       this.sound.play('ui_click', { volume: audioConfig.sfxVolume.value })
       
-      // Stop music before starting game
-      if (this.backgroundMusic && this.backgroundMusic.isPlaying) {
-        this.backgroundMusic.stop()
-      }
-      
-      this.scene.start('GameScene', { mode: 'single' })
+      // 🎮 NEW: Go to game mode selection menu!
+      this.scene.start('GameModeMenuScene')
     })
   }
 
