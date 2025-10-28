@@ -33,7 +33,7 @@ class MultiplayerService {
       console.log('🎮 Initializing online multiplayer...')
       
       // Default server URL - try online server first
-      const defaultServerUrl = 'https://tom-jerry-multiplayer.glitch.me'
+      const defaultServerUrl = 'https://tom-jerry-server-production.up.railway.app'
       const url = serverUrl || defaultServerUrl
       
       console.log('🌐 Connecting to server:', url)
