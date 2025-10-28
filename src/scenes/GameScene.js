@@ -174,6 +174,9 @@ export class GameScene extends Phaser.Scene {
     
     // 🎬 Start obstacle spawn timer - spawn Tom & Jerry obstacles regularly
     this.startObstacleSpawnTimer()
+    
+    // 🎪 Start Tom random event timer - Tom causes chaos!
+    this.startTomEventTimer()
   }
 
   createBackground() {
@@ -1271,6 +1274,268 @@ export class GameScene extends Phaser.Scene {
     if (success) {
       console.log(`🎬 ${obstacleType} spawned from sky at (${targetSlot.row}, ${targetSlot.col})`)
     }
+  }
+  
+  // 🎪 Start Tom random event timer
+  startTomEventTimer() {
+    // Initial delay before first Tom event (configurable)
+    const minDelay = gameConfig.tomEventFirstDelayMin.value * 1000
+    const maxDelay = gameConfig.tomEventFirstDelayMax.value * 1000
+    const initialDelay = Phaser.Math.Between(minDelay, maxDelay)
+    
+    console.log(`🎪 First Tom event will happen in ${initialDelay / 1000} seconds`)
+    
+    this.time.delayedCall(initialDelay, () => {
+      this.triggerRandomTomEvent()
+      
+      // Then trigger Tom events at regular intervals (configurable)
+      const minInterval = gameConfig.tomEventIntervalMin.value * 1000
+      const maxInterval = gameConfig.tomEventIntervalMax.value * 1000
+      
+      this.tomEventTimer = this.time.addEvent({
+        delay: Phaser.Math.Between(minInterval, maxInterval),
+        callback: () => {
+          this.triggerRandomTomEvent()
+          // Randomize next event interval
+          this.tomEventTimer.delay = Phaser.Math.Between(minInterval, maxInterval)
+          console.log(`⏰ Next Tom event in ${this.tomEventTimer.delay / 1000} seconds`)
+        },
+        loop: true
+      })
+    })
+  }
+  
+  // 🎲 Trigger a random Tom event
+  triggerRandomTomEvent() {
+    // Don't trigger events if game is over
+    if (this.gameOver || this.levelComplete) {
+      return
+    }
+    
+    // Random event selection with weighted probabilities
+    const randomValue = Math.random() * 100
+    
+    if (randomValue < 50) {
+      // 50% - Tom & Jerry chase (most fun, non-disruptive)
+      this.tomJerryChaseEvent()
+    } else if (randomValue < 75) {
+      // 25% - Tom drops obstacles
+      this.tomDropsObstaclesEvent()
+    } else {
+      // 25% - Tom shakes screen
+      this.tomShakesScreenEvent()
+    }
+  }
+  
+  // 🏃 Event 1: Tom chases Jerry across the screen
+  tomJerryChaseEvent() {
+    console.log('🏃 Tom & Jerry chase event!')
+    
+    const screenWidth = this.cameras.main.width
+    const screenHeight = this.cameras.main.height
+    
+    // Random vertical position
+    const yPosition = Phaser.Math.Between(screenHeight * 0.3, screenHeight * 0.7)
+    
+    // Jerry runs first
+    const jerry = this.add.image(-150, yPosition, 'jerry_running_scared')
+      .setDepth(10000)
+      .setScale(0.15)
+    
+    // Apply high quality rendering
+    this.applyHighQualityRendering(jerry)
+    
+    // Jerry runs across screen
+    this.tweens.add({
+      targets: jerry,
+      x: screenWidth + 150,
+      duration: 2500,
+      ease: 'Linear',
+      onComplete: () => jerry.destroy()
+    })
+    
+    // Play whoosh sound
+    this.sound.play('whoosh_fast', { volume: audioConfig.sfxVolume.value })
+    
+    // Tom chases 400ms later
+    this.time.delayedCall(400, () => {
+      const tom = this.add.image(-150, yPosition, 'tom_chasing_jerry')
+        .setDepth(10000)
+        .setScale(0.15)
+      
+      // Apply high quality rendering
+      this.applyHighQualityRendering(tom)
+      
+      this.tweens.add({
+        targets: tom,
+        x: screenWidth + 150,
+        duration: 2500,
+        ease: 'Linear',
+        onComplete: () => tom.destroy()
+      })
+      
+      // Play running sound and Tom's laugh
+      this.sound.play('tom_running_footsteps', { volume: audioConfig.sfxVolume.value * 0.7 })
+      
+      // Add dust clouds behind them
+      this.createDustTrail(yPosition)
+    })
+  }
+  
+  // 💨 Create dust trail effect
+  createDustTrail(yPosition) {
+    const screenWidth = this.cameras.main.width
+    
+    for (let i = 0; i < 5; i++) {
+      this.time.delayedCall(i * 500, () => {
+        const dust = this.add.image(i * 200, yPosition + 20, 'dust_cloud')
+          .setDepth(9999)
+          .setScale(0.08)
+          .setAlpha(0.6)
+        
+        this.tweens.add({
+          targets: dust,
+          alpha: 0,
+          scale: 0.15,
+          duration: 800,
+          ease: 'Power2',
+          onComplete: () => dust.destroy()
+        })
+      })
+    }
+  }
+  
+  // 🎬 Event 2: Tom drops obstacles from the sky
+  tomDropsObstaclesEvent() {
+    console.log('🎬 Tom drops obstacles event!')
+    
+    const screenWidth = this.cameras.main.width
+    
+    // Tom appears at top with sack
+    const tom = this.add.image(screenWidth / 2, -150, 'tom_carrying_sack')
+      .setDepth(10000)
+      .setScale(0.2)
+    
+    // Apply high quality rendering
+    this.applyHighQualityRendering(tom)
+    
+    // Tom slides down
+    this.tweens.add({
+      targets: tom,
+      y: 100,
+      duration: 800,
+      ease: 'Bounce.easeOut'
+    })
+    
+    // Tom evil laugh
+    this.time.delayedCall(500, () => {
+      this.sound.play('tom_evil_laugh', { volume: audioConfig.sfxVolume.value })
+    })
+    
+    // Tom trips and falls after 1.5 seconds
+    this.time.delayedCall(1500, () => {
+      // Change to tripping sprite
+      tom.setTexture('tom_tripping')
+      tom.setRotation(-0.3)
+      
+      // Tom falls out of screen
+      this.tweens.add({
+        targets: tom,
+        y: this.cameras.main.height + 150,
+        rotation: Math.PI * 2,
+        duration: 1000,
+        ease: 'Cubic.easeIn',
+        onComplete: () => tom.destroy()
+      })
+      
+      // Play crash sound
+      this.time.delayedCall(800, () => {
+        this.sound.play('tom_crash_fall', { volume: audioConfig.sfxVolume.value })
+      })
+      
+      // Drop 2-3 obstacles while falling
+      const obstacleCount = Phaser.Math.Between(2, 3)
+      for (let i = 0; i < obstacleCount; i++) {
+        this.time.delayedCall(i * 300, () => {
+          this.spawnRandomObstacle()
+        })
+      }
+    })
+  }
+  
+  // 🌍 Event 3: Tom shakes the screen with hammer
+  tomShakesScreenEvent() {
+    console.log('🌍 Tom shakes screen event!')
+    
+    const screenWidth = this.cameras.main.width
+    
+    // Tom appears at top with hammer
+    const tom = this.add.image(screenWidth * 0.8, -150, 'tom_with_hammer')
+      .setDepth(10000)
+      .setScale(0.18)
+    
+    // Apply high quality rendering
+    this.applyHighQualityRendering(tom)
+    
+    // Tom slides down
+    this.tweens.add({
+      targets: tom,
+      y: 120,
+      duration: 600,
+      ease: 'Back.easeOut'
+    })
+    
+    // Tom strikes with hammer after 1 second
+    this.time.delayedCall(1000, () => {
+      // Hammer swing animation
+      this.tweens.add({
+        targets: tom,
+        scaleY: 0.22,
+        scaleX: 0.16,
+        duration: 100,
+        yoyo: true,
+        repeat: 2
+      })
+      
+      // Screen shake effect!
+      this.cameras.main.shake(2000, 0.01)
+      
+      // Play rumble sound
+      this.sound.play('screen_shake_rumble', { volume: audioConfig.sfxVolume.value })
+      
+      // All items vibrate!
+      this.gridSlots.forEach((row) => {
+        row.forEach((slot) => {
+          const gridCell = this.gridData[slot.row][slot.col]
+          // Check if gridCell and items exist before accessing
+          if (gridCell && gridCell.items && gridCell.items.length > 0) {
+            gridCell.items.forEach((item) => {
+              this.tweens.add({
+                targets: item,
+                x: item.x + Phaser.Math.Between(-5, 5),
+                y: item.y + Phaser.Math.Between(-5, 5),
+                duration: 50,
+                yoyo: true,
+                repeat: 40,
+                ease: 'Sine.easeInOut'
+              })
+            })
+          }
+        })
+      })
+      
+      // Tom disappears after shaking
+      this.time.delayedCall(2500, () => {
+        this.tweens.add({
+          targets: tom,
+          y: -150,
+          alpha: 0,
+          duration: 500,
+          ease: 'Back.easeIn',
+          onComplete: () => tom.destroy()
+        })
+      })
+    })
   }
   
   // 🎬 Create impact effect when obstacle lands
@@ -2680,6 +2945,12 @@ export class GameScene extends Phaser.Scene {
     if (this.obstacleSpawnTimer) {
       this.obstacleSpawnTimer.remove()
       this.obstacleSpawnTimer = null
+    }
+    
+    // 🎪 Stop Tom event timer
+    if (this.tomEventTimer) {
+      this.tomEventTimer.remove()
+      this.tomEventTimer = null
     }
     
     // Stop game music when leaving this scene

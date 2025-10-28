@@ -95,6 +95,26 @@
       "value": 12,
       "type": "number",
       "description": "Maximum delay before first obstacle (seconds)"
+    },
+    "tomEventIntervalMin": {
+      "value": 30,
+      "type": "number",
+      "description": "Minimum interval between Tom events (seconds)"
+    },
+    "tomEventIntervalMax": {
+      "value": 50,
+      "type": "number",
+      "description": "Maximum interval between Tom events (seconds)"
+    },
+    "tomEventFirstDelayMin": {
+      "value": 20,
+      "type": "number",
+      "description": "Minimum delay before first Tom event (seconds)"
+    },
+    "tomEventFirstDelayMax": {
+      "value": 30,
+      "type": "number",
+      "description": "Maximum delay before first Tom event (seconds)"
     }
   },
   "levelConfig": {

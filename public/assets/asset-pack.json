@@ -249,6 +249,31 @@
         "type": "image",
         "key": "piano_obstacle",
         "url": "https://cdn-game-mcp.gambo.ai/e13f80a8-420a-4524-8968-d1fdf6ba358f/images/piano_obstacle.png"
+      },
+      {
+        "type": "image",
+        "key": "tom_chasing_jerry",
+        "url": "https://cdn-game-mcp.gambo.ai/8b112f39-892c-4a75-b921-c0264d909628/images/tom_chasing_jerry.png"
+      },
+      {
+        "type": "image",
+        "key": "jerry_running_scared",
+        "url": "https://cdn-game-mcp.gambo.ai/e45d6ae9-0334-442c-b262-6a5e1bd0d0f6/images/jerry_running_scared.png"
+      },
+      {
+        "type": "image",
+        "key": "tom_carrying_sack",
+        "url": "https://cdn-game-mcp.gambo.ai/95f2a00d-9bc2-484c-a228-a5246610f1cf/images/tom_carrying_sack.png"
+      },
+      {
+        "type": "image",
+        "key": "tom_tripping",
+        "url": "https://cdn-game-mcp.gambo.ai/03d831f5-dc14-49e2-b5a2-8db6898bca26/images/tom_tripping.png"
+      },
+      {
+        "type": "image",
+        "key": "tom_with_hammer",
+        "url": "https://cdn-game-mcp.gambo.ai/ca9dae3f-0cb7-46d6-b941-3ec57e53dd3d/images/tom_with_hammer.png"
       }
     ]
   },
@@ -313,6 +338,31 @@
         "type": "audio",
         "key": "score_gain",
         "url": "https://cdn-game-mcp.gambo.ai/26a662d9-241d-48be-9f66-39e4d162be3a/sound_effects/score_gain.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "tom_running_footsteps",
+        "url": "https://cdn-game-mcp.gambo.ai/605a2242-d119-49c5-be83-17ac14f6b49f/sound_effects/tom_running_footsteps.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "tom_evil_laugh",
+        "url": "https://cdn-game-mcp.gambo.ai/09b6c9d4-9020-4317-b907-67a03eaf5495/sound_effects/tom_evil_laugh.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "tom_crash_fall",
+        "url": "https://cdn-game-mcp.gambo.ai/775e5c32-1f82-4a7c-b030-1b4d77f56db0/sound_effects/tom_crash_fall.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "screen_shake_rumble",
+        "url": "https://cdn-game-mcp.gambo.ai/8e3962f0-97b3-4070-a3a5-7c95f0e2205e/sound_effects/screen_shake_rumble.mp3"
+      },
+      {
+        "type": "audio",
+        "key": "whoosh_fast",
+        "url": "https://cdn-game-mcp.gambo.ai/28cf53da-54e9-4398-a0d7-1efe528229b4/sound_effects/whoosh_fast.mp3"
       }
     ]
   },
