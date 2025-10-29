@@ -2657,18 +2657,36 @@ export class GameScene extends Phaser.Scene {
       return target && this.eliminatedCounts[itemType] < target.count
     })
     
+    // 🛡️ FIX: Track items being added to prevent instant matches
+    const itemsToAdd = []
+    
     for (let i = 0; i < itemCount; i++) {
       let itemType
+      let attempts = 0
+      const maxAttempts = 10
       
-      // 🎯 HARDER: 55% chance for EACH item to be a target if needed
-      // Reduced from 70% to make it more challenging!
-      if (incompleteTargets.length > 0 && Math.random() < gameConfig.targetItemSpawnChanceRefill.value / 100) {
-        itemType = incompleteTargets[Phaser.Math.Between(0, incompleteTargets.length - 1)]
-      } else {
-        // Other items: random selection from all types (includes 15% obstacle chance)
-        itemType = this.getRandomItemType()
-      }
+      do {
+        // 🎯 HARDER: 55% chance for EACH item to be a target if needed
+        // Reduced from 70% to make it more challenging!
+        if (incompleteTargets.length > 0 && Math.random() < gameConfig.targetItemSpawnChanceRefill.value / 100) {
+          itemType = incompleteTargets[Phaser.Math.Between(0, incompleteTargets.length - 1)]
+        } else {
+          // Other items: random selection from all types (includes 15% obstacle chance)
+          itemType = this.getRandomItemType()
+        }
+        attempts++
+        
+        // 🛡️ Check if this would create an instant match
+        const wouldMatch = itemsToAdd.length >= 2 && 
+                          itemsToAdd[0] === itemType && 
+                          itemsToAdd[1] === itemType
+        
+        if (!wouldMatch || attempts >= maxAttempts) {
+          break // Accept this item
+        }
+      } while (true)
       
+      itemsToAdd.push(itemType)
       this.addItemToSlot(row, col, itemType)
     }
   }
