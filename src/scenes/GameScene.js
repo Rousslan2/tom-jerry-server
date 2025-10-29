@@ -185,6 +185,12 @@ export class GameScene extends Phaser.Scene {
     // Initialize shelf items
     this.populateInitialItems()
     
+    // ✨ FIX: Check for initial matches after a short delay to let items appear
+    this.time.delayedCall(800, () => {
+      console.log('🔍 Checking for initial matches on the board...')
+      this.checkAllCellsForMatches()
+    })
+    
     // Setup multiplayer if in online mode
     if (this.gameMode === 'online') {
       this.setupMultiplayerSync()
