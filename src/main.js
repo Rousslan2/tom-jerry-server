@@ -12,6 +12,7 @@ import { SettingsScene } from './scenes/SettingsScene.js'
 // 🆕 NOUVELLES SCÈNES
 import AchievementScene from './scenes/AchievementScene.js'
 import SkinScene from './scenes/SkinScene.js'
+import { registerFontHelpers } from './utils/fontHelpers.js'
 
 const config = {
   type: Phaser.AUTO,
@@ -45,6 +46,9 @@ const config = {
     SkinScene
   ]
 }
+
+// Register global helpers before booting Phaser
+registerFontHelpers()
 
 const game = new Phaser.Game(config)
 
