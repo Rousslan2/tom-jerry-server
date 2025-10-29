@@ -4,7 +4,7 @@
  */
 
 import Phaser from 'phaser'
-import { skinManager } from './SkinManager.js'
+import { skinManager } from '../services/SkinManager.js'
 
 export default class SkinScene extends Phaser.Scene {
   constructor() {
