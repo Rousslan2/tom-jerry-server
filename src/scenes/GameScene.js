@@ -1953,8 +1953,8 @@ export class GameScene extends Phaser.Scene {
         this.checkAllCellsForMatches()
       })
       
-      // 🔄 Check for deadlock ONLY every 5 moves (not every move!)
-      if (this.currentMoves % 5 === 0) {
+      // 🔄 Check for deadlock every 3 moves (was 5)
+      if (this.currentMoves % 3 === 0) {
         this.time.delayedCall(500, () => {
           this.checkForDeadlock()
         })
@@ -3018,21 +3018,16 @@ export class GameScene extends Phaser.Scene {
     // Count total empty slots and items
     const stats = this.getGridStats()
     
-    // 🎯 SMART CHECK: Only shuffle if truly stuck
-    // Don't shuffle if:
-    // 1. There are many empty slots (items can be moved around)
-    // 2. Grid is not full enough to be stuck
-    if (stats.emptySlots > stats.totalSlots * 0.3) {
-      // More than 30% empty, plenty of room to move
-      return
-    }
-    
+    // 🎯 NEW: Check for deadlock more aggressively
+    // Don't wait for grid to be super full
     const possibleMatches = this.findPossibleMatches()
     
-    // Only shuffle if REALLY no moves (0 possible matches)
-    // AND grid is pretty full
-    if (possibleMatches === 0 && stats.emptySlots < stats.totalSlots * 0.2) {
-      console.log('⚠️ TRUE DEADLOCK! No moves possible. Shuffling...')
+    console.log(`🔍 Deadlock check: ${possibleMatches} possible matches, ${stats.emptySlots}/${stats.totalSlots} empty`)
+    
+    // ✅ Shuffle if NO possible matches AND grid has some items
+    // Changed: Don't require grid to be super full (was 80% full, now just 50%)
+    if (possibleMatches === 0 && stats.emptySlots < stats.totalSlots * 0.5) {
+      console.log('⚠️ DEADLOCK DETECTED! No moves possible. Shuffling...')
       this.shuffleBoard()
     }
   }
