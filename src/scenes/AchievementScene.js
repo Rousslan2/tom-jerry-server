@@ -4,7 +4,7 @@
  */
 
 import Phaser from 'phaser'
-import { achievementManager } from './AchievementManager.js'
+import { achievementManager } from '../services/AchievementManager.js'
 
 export default class AchievementScene extends Phaser.Scene {
   constructor() {

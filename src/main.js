@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import PreloadScene from './scenes/PreloadScene.js'
+import { LoadingScene } from './scenes/LoadingScene.js'
 import TitleScene from './scenes/TitleScene.js'
 import MenuScene from './scenes/MenuScene.js'
 import ModeSelectionScene from './scenes/ModeSelectionScene.js'
@@ -9,7 +9,6 @@ import VictoryScene from './scenes/VictoryScene.js'
 import GameOverScene from './scenes/GameOverScene.js'
 import OnlineLobbyScene from './scenes/OnlineLobbyScene.js'
 import SettingsScene from './scenes/SettingsScene.js'
-import StatsScene from './scenes/StatsScene.js'
 // 🆕 NOUVELLES SCÈNES
 import AchievementScene from './scenes/AchievementScene.js'
 import SkinScene from './scenes/SkinScene.js'
@@ -31,7 +30,7 @@ const config = {
     }
   },
   scene: [
-    PreloadScene,
+    LoadingScene,
     TitleScene,
     MenuScene,
     ModeSelectionScene,
@@ -41,7 +40,6 @@ const config = {
     GameOverScene,
     OnlineLobbyScene,
     SettingsScene,
-    StatsScene,
     // 🆕 NOUVELLES SCÈNES
     AchievementScene,
     SkinScene
