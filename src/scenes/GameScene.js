@@ -2434,6 +2434,12 @@ export class GameScene extends Phaser.Scene {
         // Apply Tom & Jerry enhancement
         this.applyTomJerryItemEnhancement(item)
         
+        // ✅ FIX: Check ALL slots for new matches after unlocking obstacle
+        this.time.delayedCall(200, () => {
+          console.log(`🔓 Obstacle unlocked at (${row},${col}) → ${newItemType}. Checking all slots...`)
+          this.checkAllCellsForMatches()
+        })
+        
         // Sparkle effect
         const sparkles = ['✨', '💫', '⭐', '🌟']
         for (let i = 0; i < 5; i++) {
