@@ -1317,6 +1317,11 @@ export class GameScene extends Phaser.Scene {
     
     if (success) {
       console.log(`🎬 ${obstacleType} spawned from sky at (${targetSlot.row}, ${targetSlot.col})`)
+      
+      // 🚧 Check if game is now blocked by too many obstacles
+      this.time.delayedCall(500, () => {
+        this.checkGameEnd()
+      })
     }
   }
   
@@ -3252,7 +3257,59 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
+  // 🚧 Check if game is blocked by obstacles (no empty positions to play)
+  isGameBlockedByObstacles() {
+    const rows = gameConfig.gridRows.value
+    const cols = gameConfig.gridCols.value
+    
+    let totalEmptyPositions = 0
+    
+    // Count total empty positions across all slots
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const gridCell = this.gridData[row][col]
+        
+        for (let i = 0; i < 3; i++) {
+          if (gridCell.positions[i] === null) {
+            totalEmptyPositions++
+          }
+        }
+      }
+    }
+    
+    // 🚧 Game is blocked if NO empty positions remain
+    const isBlocked = totalEmptyPositions === 0
+    
+    if (isBlocked) {
+      console.log('🚧 GAME BLOCKED - NO EMPTY POSITIONS!')
+      console.log(`📊 Empty positions: ${totalEmptyPositions}`)
+    }
+    
+    return isBlocked
+  }
+
   checkGameEnd() {
+    // 🚧 NEW: Check if game is blocked by obstacles FIRST (applies to all modes)
+    if (this.isGameBlockedByObstacles()) {
+      if (!this.gameOver && !this.levelComplete) {
+        this.gameOver = true
+        this.sound.play('game_over', { volume: audioConfig.sfxVolume.value })
+        
+        // 🎮 MULTIPLAYER: If someone loses due to obstacles, tell opponent
+        if (this.gameMode === 'online') {
+          multiplayerService.sendGameEnd('lose')
+        }
+        
+        this.scene.launch('GameOverScene', {
+          score: this.score,
+          moves: this.currentMoves,
+          mode: this.gameMode,
+          reason: 'No more space! 🚧'
+        })
+        return
+      }
+    }
+    
     // 🎮 Endless/Zen mode - no game over conditions except target completion
     if (this.selectedGameMode === 'endless' || this.selectedGameMode === 'zen') {
       // Check if targets met (optional victory for these modes)
