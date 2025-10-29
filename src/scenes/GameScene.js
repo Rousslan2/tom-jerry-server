@@ -685,6 +685,33 @@ export class GameScene extends Phaser.Scene {
   createTargetDisplay() {
     const screenWidth = this.cameras.main.width
     
+    // 🧘 ZEN MODE: No targets to display!
+    if (this.selectedGameMode === 'zen') {
+      // Just show a peaceful message instead
+      this.targetText = this.add.text(screenWidth * 0.15, 70, '🧘 ZEN MODE - RELAX 🧘', {
+        fontSize: `${window.getResponsiveFontSize(22)}px`,
+        fontFamily: window.getGameFont(),
+        color: '#8B4513',
+        stroke: '#DEB887',
+        strokeThickness: 3,
+        align: 'center',
+        fontStyle: 'bold'
+      }).setOrigin(0.5, 0.5).setDepth(2100)
+      
+      // Add breathing animation
+      this.tweens.add({
+        targets: this.targetText,
+        scale: 1.05,
+        duration: 2000,
+        ease: 'Sine.easeInOut',
+        yoyo: true,
+        repeat: -1
+      })
+      
+      this.targetDisplays = [] // No target displays
+      return // Exit early
+    }
+    
     // Cute target background - cream yellow gradient background
     this.targetBg = this.add.graphics()
     this.targetBg.fillGradientStyle(0xFFFACD, 0xFFFACD, 0xF5DEB3, 0xF5DEB3, 0.95)  // Cream yellow gradient
@@ -2711,17 +2738,34 @@ export class GameScene extends Phaser.Scene {
         display.text.setText(`✅ ${current}/${target}`)
         display.text.setColor('#32CD32')  // Lime green
         
-        // Add blinking effect when completed
+        // Add subtle effect when completed (not too intrusive!)
         if (!display.completed) {
           display.completed = true
+          
+          // Small scale animation - less intrusive
           this.tweens.add({
             targets: [display.icon, display.text],
-            scaleX: 1.2,
-            scaleY: 1.2,
-            duration: 200,
+            scaleX: 1.15,  // Reduced from 1.2
+            scaleY: 1.15,
+            duration: 150,  // Faster (was 200)
             ease: 'Back.easeOut',
             yoyo: true,
-            repeat: 2
+            repeat: 1  // Only once (was 2)
+          })
+          
+          // Small sparkle effect at target location (not fullscreen)
+          const sparkle = this.add.text(display.icon.x, display.icon.y - 30, '✨', {
+            fontSize: '24px',
+            color: '#FFD700'
+          }).setOrigin(0.5, 0.5).setDepth(2200)
+          
+          this.tweens.add({
+            targets: sparkle,
+            y: sparkle.y - 20,
+            alpha: 0,
+            duration: 600,
+            ease: 'Quad.easeOut',
+            onComplete: () => sparkle.destroy()
           })
         }
       } else {
