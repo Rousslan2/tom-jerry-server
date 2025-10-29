@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { screenSize, gameConfig, levelConfig, audioConfig } from '../gameConfig.json'
 import { multiplayerService } from '../services/MultiplayerService.js'
+import { MobileEnhancements } from '../utils/MobileEnhancements.js'
 
 export class GameScene extends Phaser.Scene {
   constructor() {
@@ -168,11 +169,16 @@ export class GameScene extends Phaser.Scene {
       titleScene.backgroundMusic.stop()
     }
     
-    // Check if mobile device
-    this.isMobile = window.isMobileDevice || false
+    // 📱 Initialize Mobile Enhancements
+    this.mobileHelper = new MobileEnhancements(this)
+    this.isMobile = this.mobileHelper.isMobile
     
+    // Show mobile tutorial on first launch
     if (this.isMobile) {
-      console.log('📱 Mobile mode activated - Touch controls enabled')
+      this.time.delayedCall(500, () => {
+        this.mobileHelper.showMobileTutorial()
+      })
+      console.log('📱 Mobile mode activated - Touch controls enhanced')
     }
     
     this.createBackground()
@@ -184,12 +190,6 @@ export class GameScene extends Phaser.Scene {
     
     // Initialize shelf items
     this.populateInitialItems()
-    
-    // ✨ FIX: Check for initial matches after a short delay to let items appear
-    this.time.delayedCall(800, () => {
-      console.log('🔍 Checking for initial matches on the board...')
-      this.checkAllCellsForMatches()
-    })
     
     // Setup multiplayer if in online mode
     if (this.gameMode === 'online') {
@@ -685,33 +685,6 @@ export class GameScene extends Phaser.Scene {
   createTargetDisplay() {
     const screenWidth = this.cameras.main.width
     
-    // 🧘 ZEN MODE: No targets to display!
-    if (this.selectedGameMode === 'zen') {
-      // Just show a peaceful message instead
-      this.targetText = this.add.text(screenWidth * 0.15, 70, '🧘 ZEN MODE - RELAX 🧘', {
-        fontSize: `${window.getResponsiveFontSize(22)}px`,
-        fontFamily: window.getGameFont(),
-        color: '#8B4513',
-        stroke: '#DEB887',
-        strokeThickness: 3,
-        align: 'center',
-        fontStyle: 'bold'
-      }).setOrigin(0.5, 0.5).setDepth(2100)
-      
-      // Add breathing animation
-      this.tweens.add({
-        targets: this.targetText,
-        scale: 1.05,
-        duration: 2000,
-        ease: 'Sine.easeInOut',
-        yoyo: true,
-        repeat: -1
-      })
-      
-      this.targetDisplays = [] // No target displays
-      return // Exit early
-    }
-    
     // Cute target background - cream yellow gradient background
     this.targetBg = this.add.graphics()
     this.targetBg.fillGradientStyle(0xFFFACD, 0xFFFACD, 0xF5DEB3, 0xF5DEB3, 0.95)  // Cream yellow gradient
@@ -1201,6 +1174,11 @@ export class GameScene extends Phaser.Scene {
     const isObstacle = itemType === 'anvil_obstacle' || itemType === 'safe_obstacle' || itemType === 'piano_obstacle'
     if (!isObstacle) {
       item.setInteractive({ draggable: true })
+      
+      // 📱 Enhance drag & drop for mobile
+      if (this.mobileHelper) {
+        this.mobileHelper.enhanceDragAndDrop(item)
+      }
     }
     
     // Apply background removal effect to Tom and Jerry retro cartoon items
@@ -1344,11 +1322,6 @@ export class GameScene extends Phaser.Scene {
     
     if (success) {
       console.log(`🎬 ${obstacleType} spawned from sky at (${targetSlot.row}, ${targetSlot.col})`)
-      
-      // 🚧 Check if game is now blocked by too many obstacles
-      this.time.delayedCall(500, () => {
-        this.checkGameEnd()
-      })
     }
   }
   
@@ -1763,6 +1736,12 @@ export class GameScene extends Phaser.Scene {
           .setAlpha(0)
         
         item.setInteractive({ draggable: true })
+        
+        // 📱 Enhance drag & drop for mobile
+        if (this.mobileHelper) {
+          this.mobileHelper.enhanceDragAndDrop(item)
+        }
+        
         this.applyTomJerryItemEnhancement(item)
         
         const offset = slot.positionOffsets[pos.posIndex]
@@ -1980,8 +1959,8 @@ export class GameScene extends Phaser.Scene {
         this.checkAllCellsForMatches()
       })
       
-      // 🔄 Check for deadlock every 3 moves (was 5)
-      if (this.currentMoves % 3 === 0) {
+      // 🔄 Check for deadlock ONLY every 5 moves (not every move!)
+      if (this.currentMoves % 5 === 0) {
         this.time.delayedCall(500, () => {
           this.checkForDeadlock()
         })
@@ -2455,17 +2434,16 @@ export class GameScene extends Phaser.Scene {
         item.clearTint() // Remove gray tint
         item.setInteractive({ draggable: true }) // Make it draggable
         
+        // 📱 Enhance drag & drop for mobile
+        if (this.mobileHelper) {
+          this.mobileHelper.enhanceDragAndDrop(item)
+        }
+        
         // Update grid data
         this.gridData[row][col].positions[position] = newItemType
         
         // Apply Tom & Jerry enhancement
         this.applyTomJerryItemEnhancement(item)
-        
-        // ✅ FIX: Check ALL slots for new matches after unlocking obstacle
-        this.time.delayedCall(200, () => {
-          console.log(`🔓 Obstacle unlocked at (${row},${col}) → ${newItemType}. Checking all slots...`)
-          this.checkAllCellsForMatches()
-        })
         
         // Sparkle effect
         const sparkles = ['✨', '💫', '⭐', '🌟']
@@ -2695,36 +2673,18 @@ export class GameScene extends Phaser.Scene {
       return target && this.eliminatedCounts[itemType] < target.count
     })
     
-    // 🛡️ FIX: Track items being added to prevent instant matches
-    const itemsToAdd = []
-    
     for (let i = 0; i < itemCount; i++) {
       let itemType
-      let attempts = 0
-      const maxAttempts = 10
       
-      do {
-        // 🎯 HARDER: 55% chance for EACH item to be a target if needed
-        // Reduced from 70% to make it more challenging!
-        if (incompleteTargets.length > 0 && Math.random() < gameConfig.targetItemSpawnChanceRefill.value / 100) {
-          itemType = incompleteTargets[Phaser.Math.Between(0, incompleteTargets.length - 1)]
-        } else {
-          // Other items: random selection from all types (includes 15% obstacle chance)
-          itemType = this.getRandomItemType()
-        }
-        attempts++
-        
-        // 🛡️ Check if this would create an instant match
-        const wouldMatch = itemsToAdd.length >= 2 && 
-                          itemsToAdd[0] === itemType && 
-                          itemsToAdd[1] === itemType
-        
-        if (!wouldMatch || attempts >= maxAttempts) {
-          break // Accept this item
-        }
-      } while (true)
+      // 🎯 HARDER: 55% chance for EACH item to be a target if needed
+      // Reduced from 70% to make it more challenging!
+      if (incompleteTargets.length > 0 && Math.random() < gameConfig.targetItemSpawnChanceRefill.value / 100) {
+        itemType = incompleteTargets[Phaser.Math.Between(0, incompleteTargets.length - 1)]
+      } else {
+        // Other items: random selection from all types (includes 15% obstacle chance)
+        itemType = this.getRandomItemType()
+      }
       
-      itemsToAdd.push(itemType)
       this.addItemToSlot(row, col, itemType)
     }
   }
@@ -2738,34 +2698,17 @@ export class GameScene extends Phaser.Scene {
         display.text.setText(`✅ ${current}/${target}`)
         display.text.setColor('#32CD32')  // Lime green
         
-        // Add subtle effect when completed (not too intrusive!)
+        // Add blinking effect when completed
         if (!display.completed) {
           display.completed = true
-          
-          // Small scale animation - less intrusive
           this.tweens.add({
             targets: [display.icon, display.text],
-            scaleX: 1.15,  // Reduced from 1.2
-            scaleY: 1.15,
-            duration: 150,  // Faster (was 200)
+            scaleX: 1.2,
+            scaleY: 1.2,
+            duration: 200,
             ease: 'Back.easeOut',
             yoyo: true,
-            repeat: 1  // Only once (was 2)
-          })
-          
-          // Small sparkle effect at target location (not fullscreen)
-          const sparkle = this.add.text(display.icon.x, display.icon.y - 30, '✨', {
-            fontSize: '24px',
-            color: '#FFD700'
-          }).setOrigin(0.5, 0.5).setDepth(2200)
-          
-          this.tweens.add({
-            targets: sparkle,
-            y: sparkle.y - 20,
-            alpha: 0,
-            duration: 600,
-            ease: 'Quad.easeOut',
-            onComplete: () => sparkle.destroy()
+            repeat: 2
           })
         }
       } else {
@@ -3068,16 +3011,21 @@ export class GameScene extends Phaser.Scene {
     // Count total empty slots and items
     const stats = this.getGridStats()
     
-    // 🎯 NEW: Check for deadlock more aggressively
-    // Don't wait for grid to be super full
+    // 🎯 SMART CHECK: Only shuffle if truly stuck
+    // Don't shuffle if:
+    // 1. There are many empty slots (items can be moved around)
+    // 2. Grid is not full enough to be stuck
+    if (stats.emptySlots > stats.totalSlots * 0.3) {
+      // More than 30% empty, plenty of room to move
+      return
+    }
+    
     const possibleMatches = this.findPossibleMatches()
     
-    console.log(`🔍 Deadlock check: ${possibleMatches} possible matches, ${stats.emptySlots}/${stats.totalSlots} empty`)
-    
-    // ✅ Shuffle if NO possible matches AND grid has some items
-    // Changed: Don't require grid to be super full (was 80% full, now just 50%)
-    if (possibleMatches === 0 && stats.emptySlots < stats.totalSlots * 0.5) {
-      console.log('⚠️ DEADLOCK DETECTED! No moves possible. Shuffling...')
+    // Only shuffle if REALLY no moves (0 possible matches)
+    // AND grid is pretty full
+    if (possibleMatches === 0 && stats.emptySlots < stats.totalSlots * 0.2) {
+      console.log('⚠️ TRUE DEADLOCK! No moves possible. Shuffling...')
       this.shuffleBoard()
     }
   }
@@ -3302,59 +3250,7 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
-  // 🚧 Check if game is blocked by obstacles (no empty positions to play)
-  isGameBlockedByObstacles() {
-    const rows = gameConfig.gridRows.value
-    const cols = gameConfig.gridCols.value
-    
-    let totalEmptyPositions = 0
-    
-    // Count total empty positions across all slots
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        const gridCell = this.gridData[row][col]
-        
-        for (let i = 0; i < 3; i++) {
-          if (gridCell.positions[i] === null) {
-            totalEmptyPositions++
-          }
-        }
-      }
-    }
-    
-    // 🚧 Game is blocked if NO empty positions remain
-    const isBlocked = totalEmptyPositions === 0
-    
-    if (isBlocked) {
-      console.log('🚧 GAME BLOCKED - NO EMPTY POSITIONS!')
-      console.log(`📊 Empty positions: ${totalEmptyPositions}`)
-    }
-    
-    return isBlocked
-  }
-
   checkGameEnd() {
-    // 🚧 NEW: Check if game is blocked by obstacles FIRST (applies to all modes)
-    if (this.isGameBlockedByObstacles()) {
-      if (!this.gameOver && !this.levelComplete) {
-        this.gameOver = true
-        this.sound.play('game_over', { volume: audioConfig.sfxVolume.value })
-        
-        // 🎮 MULTIPLAYER: If someone loses due to obstacles, tell opponent
-        if (this.gameMode === 'online') {
-          multiplayerService.sendGameEnd('lose')
-        }
-        
-        this.scene.launch('GameOverScene', {
-          score: this.score,
-          moves: this.currentMoves,
-          mode: this.gameMode,
-          reason: 'No more space! 🚧'
-        })
-        return
-      }
-    }
-    
     // 🎮 Endless/Zen mode - no game over conditions except target completion
     if (this.selectedGameMode === 'endless' || this.selectedGameMode === 'zen') {
       // Check if targets met (optional victory for these modes)
