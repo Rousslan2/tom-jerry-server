@@ -204,15 +204,22 @@ export class VictoryScene extends Phaser.Scene {
   createVictoryButtons(centerX, centerY) {
     const buttonWidth = 280
     const buttonHeight = 50
-    const buttonSpacing = 100
     
-    const buttonAreaY = centerY + 160 // Move buttons further down to avoid covering stats
-    
-    // Continue button (green theme)
-    this.createContinueButton(centerX, buttonAreaY - buttonSpacing/2, buttonWidth, buttonHeight)
-    
-    // Main Menu button (blue theme)
-    this.createMainMenuButton(centerX, buttonAreaY + buttonSpacing/2, buttonWidth, buttonHeight)
+    // 🎮 MODIFICATION: Si mode online, ne montrer qu'un seul bouton (Main Menu) centré
+    if (this.gameMode === 'online') {
+      const buttonY = centerY + 160
+      this.createMainMenuButton(centerX, buttonY, buttonWidth, buttonHeight)
+    } else {
+      // Mode solo: afficher les deux boutons
+      const buttonSpacing = 100
+      const buttonAreaY = centerY + 160
+      
+      // Continue button (green theme)
+      this.createContinueButton(centerX, buttonAreaY - buttonSpacing/2, buttonWidth, buttonHeight)
+      
+      // Main Menu button (blue theme)
+      this.createMainMenuButton(centerX, buttonAreaY + buttonSpacing/2, buttonWidth, buttonHeight)
+    }
   }
 
   createContinueButton(x, y, width, height) {
@@ -386,7 +393,12 @@ export class VictoryScene extends Phaser.Scene {
   }
 
   setupInputs() {
-    // Listen for keyboard input
+    // 🎮 MODIFICATION: Ne pas écouter les touches en mode online
+    if (this.gameMode === 'online') {
+      return // Pas de raccourcis clavier en mode online
+    }
+    
+    // Listen for keyboard input (solo mode only)
     this.enterKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER)
     this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE)
 

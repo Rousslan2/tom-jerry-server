@@ -23,7 +23,7 @@ export class GameOverScene extends Phaser.Scene {
     const screenWidth = screenSize.width.value
     const screenHeight = screenSize.height.value
 
-    // 💀 UPDATE STATS: Increment losses for online mode
+    // 👀 UPDATE STATS: Increment losses for online mode
     if (this.gameMode === 'online') {
       this.updateOnlineStats('loss')
     }
@@ -132,15 +132,22 @@ export class GameOverScene extends Phaser.Scene {
   createGameOverButtons(centerX, centerY) {
     const buttonWidth = 280
     const buttonHeight = 50
-    const buttonSpacing = 100  // Increase spacing
     
-    const buttonAreaY = centerY + 150  // Move buttons further down to avoid covering stats
-    
-    // Try Again button (green theme) - move further down
-    this.createTryAgainButton(centerX, buttonAreaY - buttonSpacing/2, buttonWidth, buttonHeight)
-    
-    // Main Menu button (blue theme)  
-    this.createMainMenuButton(centerX, buttonAreaY + buttonSpacing/2, buttonWidth, buttonHeight)
+    // 🎮 MODIFICATION: Si mode online, ne montrer qu'un seul bouton (Main Menu) centré
+    if (this.gameMode === 'online') {
+      const buttonY = centerY + 150
+      this.createMainMenuButton(centerX, buttonY, buttonWidth, buttonHeight)
+    } else {
+      // Mode solo: afficher les deux boutons
+      const buttonSpacing = 100
+      const buttonAreaY = centerY + 150
+      
+      // Try Again button (green theme)
+      this.createTryAgainButton(centerX, buttonAreaY - buttonSpacing/2, buttonWidth, buttonHeight)
+      
+      // Main Menu button (blue theme)  
+      this.createMainMenuButton(centerX, buttonAreaY + buttonSpacing/2, buttonWidth, buttonHeight)
+    }
   }
 
   createTryAgainButton(x, y, width, height) {
@@ -330,7 +337,12 @@ export class GameOverScene extends Phaser.Scene {
 
 
   setupInputs() {
-    // Listen for keyboard input
+    // 🎮 MODIFICATION: Ne pas écouter les touches en mode online
+    if (this.gameMode === 'online') {
+      return // Pas de raccourcis clavier en mode online
+    }
+    
+    // Listen for keyboard input (solo mode only)
     this.enterKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER)
     this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE)
 
