@@ -329,8 +329,9 @@ class MultiplayerService {
 
     // Receive game action
     this.socket.on('gameAction', (data) => {
-      if (this.onGameAction) {
-        this.onGameAction(data)
+      if (this.onGameAction && data.actionData) {
+        // ✅ Pass only actionData to match the expected format in GameScene
+        this.onGameAction(data.actionData)
       }
     })
 
@@ -570,7 +571,7 @@ class MultiplayerService {
     if (this.useOnlineServer && this.socket && this.socket.connected) {
       this.socket.emit('gameAction', {
         roomCode: this.roomCode,
-        action: action
+        actionData: action  // ✅ Changed from "action" to "actionData" for consistency
       })
       return
     }
@@ -694,8 +695,10 @@ class MultiplayerService {
     if (this.useOnlineServer && this.socket && this.socket.connected) {
       this.socket.emit('gameAction', {
         roomCode: this.roomCode,
-        actionType: 'gameEnd',
-        actionData: gameEndData
+        actionData: {
+          type: 'gameEnd',  // ✅ Changed from actionType to match local mode format
+          ...gameEndData
+        }
       })
     } else {
       // Local mode - broadcast to other tabs
