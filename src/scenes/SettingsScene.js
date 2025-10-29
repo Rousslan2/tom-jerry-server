@@ -14,6 +14,7 @@ export class SettingsScene extends Phaser.Scene {
     this.overlay = this.add.rectangle(0, 0, screenWidth, screenHeight, 0x000000, 0.7)
       .setOrigin(0, 0)
       .setDepth(2000)
+      .setInteractive() // Block clicks from passing through
 
     // Create settings panel background
     const panelWidth = 600
