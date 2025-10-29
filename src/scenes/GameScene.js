@@ -3368,6 +3368,11 @@ export class GameScene extends Phaser.Scene {
       this.gameOver = true
       this.sound.play('game_over', { volume: audioConfig.sfxVolume.value })
       
+      // 🎮 MULTIPLAYER: If someone loses due to time, tell opponent
+      if (this.gameMode === 'online') {
+        multiplayerService.sendGameEnd('lose')
+      }
+      
       this.scene.launch('GameOverScene', {
         score: this.score,
         moves: this.currentMoves,
