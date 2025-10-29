@@ -2301,12 +2301,28 @@ export class GameScene extends Phaser.Scene {
     // ⭐ Play appropriate sound based on combo level - NEW SOUNDS! 🎵
     if (this.combo >= 5) {
       this.sound.play('combo_mega', { volume: audioConfig.sfxVolume.value })
+      // 📱 Mega combo vibration!
+      if (this.mobileHelper) {
+        this.mobileHelper.vibrate([30, 10, 30, 10, 30, 10, 50])
+      }
     } else if (this.combo >= 3) {
       this.sound.play('combo_x3', { volume: audioConfig.sfxVolume.value })
+      // 📱 Triple combo vibration
+      if (this.mobileHelper) {
+        this.mobileHelper.vibrate([30, 10, 30, 10, 30])
+      }
     } else if (this.combo >= 2) {
       this.sound.play('combo_x2', { volume: audioConfig.sfxVolume.value })
+      // 📱 Double combo vibration
+      if (this.mobileHelper) {
+        this.mobileHelper.vibrate([20, 10, 20])
+      }
     } else {
       this.sound.play('match_eliminate', { volume: audioConfig.sfxVolume.value })
+      // 📱 Normal elimination vibration
+      if (this.mobileHelper) {
+        this.mobileHelper.vibrate('elimination')
+      }
     }
     
     // Also play score gain sound for extra satisfaction! 💰
@@ -2747,6 +2763,17 @@ export class GameScene extends Phaser.Scene {
           if (!this.gameOver && !this.levelComplete) {
             this.levelComplete = true
             this.sound.play('level_complete', { volume: audioConfig.sfxVolume.value })
+            
+            // 📱 Victory feedback
+            if (this.mobileHelper) {
+              this.mobileHelper.vibrate('victory')
+              this.mobileHelper.showMobileNotification(
+                '🏆 Victory! Opponent disconnected!',
+                2000,
+                'success'
+              )
+            }
+            
             this.scene.launch('VictoryScene', { 
               score: this.score,
               moves: this.currentMoves,
@@ -2789,6 +2816,17 @@ export class GameScene extends Phaser.Scene {
         if (actionData.result === 'win' && !this.gameOver && !this.levelComplete) {
           this.gameOver = true
           this.sound.play('game_over', { volume: audioConfig.sfxVolume.value })
+          
+          // 📱 Opponent won feedback
+          if (this.mobileHelper) {
+            this.mobileHelper.vibrate('error')
+            this.mobileHelper.showMobileNotification(
+              '👤 Opponent Won!',
+              2000,
+              'error'
+            )
+          }
+          
           this.scene.launch('GameOverScene', {
             score: this.score,
             moves: this.currentMoves,
@@ -2801,6 +2839,17 @@ export class GameScene extends Phaser.Scene {
         if (actionData.result === 'lose' && !this.gameOver && !this.levelComplete) {
           this.levelComplete = true
           this.sound.play('level_complete', { volume: audioConfig.sfxVolume.value })
+          
+          // 📱 Victory feedback
+          if (this.mobileHelper) {
+            this.mobileHelper.vibrate('victory')
+            this.mobileHelper.showMobileNotification(
+              '🏆 Victory! Opponent gave up!',
+              2000,
+              'success'
+            )
+          }
+          
           this.scene.launch('VictoryScene', { 
             score: this.score,
             moves: this.currentMoves,
@@ -3262,6 +3311,17 @@ export class GameScene extends Phaser.Scene {
       if (victoryConditionMet && !this.levelComplete) {
         this.levelComplete = true
         this.sound.play('level_complete', { volume: audioConfig.sfxVolume.value })
+        
+        // 📱 Victory feedback
+        if (this.mobileHelper) {
+          this.mobileHelper.vibrate('victory')
+          this.mobileHelper.showMobileNotification(
+            '🎉 VICTORY! All objectives completed!',
+            2000,
+            'success'
+          )
+        }
+        
         this.scene.launch('VictoryScene', { 
           score: this.score,
           moves: this.currentMoves,
@@ -3281,6 +3341,16 @@ export class GameScene extends Phaser.Scene {
     if (victoryConditionMet && !this.levelComplete) {
       this.levelComplete = true
       this.sound.play('level_complete', { volume: audioConfig.sfxVolume.value })
+      
+      // 📱 Victory feedback
+      if (this.mobileHelper) {
+        this.mobileHelper.vibrate('victory')
+        this.mobileHelper.showMobileNotification(
+          '🎉 VICTORY! All objectives completed!',
+          2000,
+          'success'
+        )
+      }
       
       // Stop timer for Time Attack mode
       if (this.selectedGameMode === 'time_attack' && this.gameTimer) {
@@ -3305,6 +3375,16 @@ export class GameScene extends Phaser.Scene {
     if (this.selectedGameMode === 'classic' && this.currentMoves >= levelConfig.maxMoves.value && !this.levelComplete) {
       this.gameOver = true
       this.sound.play('game_over', { volume: audioConfig.sfxVolume.value })
+      
+      // 📱 Game over feedback
+      if (this.mobileHelper) {
+        this.mobileHelper.vibrate('error')
+        this.mobileHelper.showMobileNotification(
+          '💀 Game Over! No more moves!',
+          2000,
+          'error'
+        )
+      }
       
       // 🎮 MULTIPLAYER: If someone loses, tell opponent
       if (this.gameMode === 'online') {
@@ -3389,6 +3469,16 @@ export class GameScene extends Phaser.Scene {
       this.gameTimer.remove()
       this.gameOver = true
       this.sound.play('game_over', { volume: audioConfig.sfxVolume.value })
+      
+      // 📱 Time's up feedback
+      if (this.mobileHelper) {
+        this.mobileHelper.vibrate('error')
+        this.mobileHelper.showMobileNotification(
+          '⏰ Time is up!',
+          2000,
+          'error'
+        )
+      }
       
       // 🎮 MULTIPLAYER: If someone loses due to time, tell opponent
       if (this.gameMode === 'online') {
