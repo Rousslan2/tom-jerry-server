@@ -222,7 +222,7 @@ export class ModeSelectionScene extends Phaser.Scene {
     const screenWidth = this.cameras.main.width
     const screenHeight = this.cameras.main.height
 
-    const buttonY = screenHeight * 0.55
+    const buttonY = screenHeight * 0.50
 
     // Button background - orange for online
     const buttonBg = this.add.graphics()
@@ -238,7 +238,7 @@ export class ModeSelectionScene extends Phaser.Scene {
 
     // Button text
     const buttonText = this.add.text(screenWidth / 2, buttonY, '🌐 ONLINE MULTIPLAYER', {
-      fontSize: `${window.getResponsiveFontSize(26)}px`,
+      fontSize: `${window.getResponsiveFontSize(24)}px`,
       fontFamily: window.getGameFont(),
       color: '#FFFFFF',
       stroke: '#000000',
@@ -248,8 +248,8 @@ export class ModeSelectionScene extends Phaser.Scene {
     }).setOrigin(0.5, 0.5).setDepth(200)
 
     // Button description
-    const buttonDesc = this.add.text(screenWidth / 2, buttonY + 50, 'Play online with different devices!', {
-      fontSize: `${window.getResponsiveFontSize(16)}px`,
+    const buttonDesc = this.add.text(screenWidth / 2, buttonY + 45, 'Play online with different devices!', {
+      fontSize: `${window.getResponsiveFontSize(14)}px`,
       fontFamily: window.getGameFont(),
       color: '#FFFFFF',
       stroke: '#000000',
@@ -314,7 +314,7 @@ export class ModeSelectionScene extends Phaser.Scene {
     const screenWidth = this.cameras.main.width
     const screenHeight = this.cameras.main.height
 
-    const buttonY = screenHeight * 0.70
+    const buttonY = screenHeight * 0.65
 
     // Button background - blue for profile
     const buttonBg = this.add.graphics()
@@ -330,7 +330,7 @@ export class ModeSelectionScene extends Phaser.Scene {
 
     // Button text
     const buttonText = this.add.text(screenWidth / 2, buttonY, '👤 PLAYER PROFILE', {
-      fontSize: `${window.getResponsiveFontSize(28)}px`,
+      fontSize: `${window.getResponsiveFontSize(24)}px`,
       fontFamily: window.getGameFont(),
       color: '#FFFFFF',
       stroke: '#000000',
@@ -340,8 +340,8 @@ export class ModeSelectionScene extends Phaser.Scene {
     }).setOrigin(0.5, 0.5).setDepth(200)
 
     // Button description
-    const buttonDesc = this.add.text(screenWidth / 2, buttonY + 50, 'View your game statistics!', {
-      fontSize: `${window.getResponsiveFontSize(16)}px`,
+    const buttonDesc = this.add.text(screenWidth / 2, buttonY + 45, 'View your game statistics!', {
+      fontSize: `${window.getResponsiveFontSize(14)}px`,
       fontFamily: window.getGameFont(),
       color: '#FFFFFF',
       stroke: '#000000',
@@ -448,7 +448,7 @@ export class ModeSelectionScene extends Phaser.Scene {
     const screenWidth = this.cameras.main.width
     const screenHeight = this.cameras.main.height
 
-    const buttonY = screenHeight * 0.85
+    const buttonY = screenHeight * 0.80
     
     // Button background - pink/purple for settings
     const buttonBg = this.add.graphics()

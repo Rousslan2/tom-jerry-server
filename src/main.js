@@ -9,6 +9,7 @@ import { VictoryScene } from "./scenes/VictoryScene.js"
 import { GameOverScene } from "./scenes/GameOverScene.js"
 import { PauseScene } from "./scenes/PauseScene.js"
 import { SettingsScene } from "./scenes/SettingsScene.js"
+import { PlayerProfileScene } from "./scenes/PlayerProfileScene.js"
 import { screenSize, mobileScreenSize, debugConfig } from "./gameConfig.json"
 
 // Detect if device is mobile
@@ -100,16 +101,17 @@ const config = {
     },
   },
   scene: [
-    LoadingScene, 
-    TitleScene, 
+    LoadingScene,
+    TitleScene,
     ModeSelectionScene,
     GameModeMenuScene,
-    GameScene, 
+    GameScene,
     OnlineLobbyScene,
-    VictoryScene, 
-    GameOverScene, 
+    VictoryScene,
+    GameOverScene,
     PauseScene,
-    SettingsScene
+    SettingsScene,
+    PlayerProfileScene
   ],
 }
 
