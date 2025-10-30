@@ -4631,8 +4631,13 @@ export class GameScene extends Phaser.Scene {
          this.applyHighQualityRendering(item)
 
          // Force texture refresh to prevent white/invisible items
-         if (item.texture && item.texture.source && item.texture.source[0]) {
-           item.texture.source[0].refresh()
+         try {
+           if (item.texture && item.texture.source && item.texture.source[0]) {
+             item.texture.source[0].refresh()
+           }
+         } catch (e) {
+           // Silently handle texture refresh errors
+           console.warn('Texture refresh failed, continuing...')
          }
 
          // Store item info
