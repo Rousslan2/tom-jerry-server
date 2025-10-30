@@ -36,7 +36,16 @@ export class LoadingScene extends Phaser.Scene {
     this.loadingComplete = false
     
     // Load asset pack by type
-    this.load.pack('assetPack', 'assets/asset-pack.json')
+    // Use absolute path to be robust on different base URLs
+    this.load.pack('assetPack', '/assets/asset-pack.json')
+
+    // Detailed progress per file for diagnostics
+    this.load.on('fileprogress', (file, value) => {
+      // Log only occasionally to avoid spam
+      if (Math.abs((value || 0) - 0.2) < 0.001 || Math.abs((value || 0) - 0.5) < 0.001) {
+        console.log('⏬ Loading file:', file?.key || file?.src || 'unknown', 'progress:', value)
+      }
+    })
 
     // Watchdog: if loading hangs, force completion after 10s
     this.watchdog = this.time.delayedCall(10000, () => {
