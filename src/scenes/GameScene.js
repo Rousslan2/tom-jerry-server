@@ -4200,6 +4200,12 @@ export class GameScene extends Phaser.Scene {
       const originalDepth = item.depth
       item.setDepth(200)
 
+      // Temporarily disable interactivity during animation to prevent conflicts
+      const wasInteractive = item.input && item.input.enabled
+      if (wasInteractive) {
+        item.disableInteractive()
+      }
+
       // Animate falling with bounce
       this.tweens.add({
         targets: item,
@@ -4209,6 +4215,14 @@ export class GameScene extends Phaser.Scene {
         onComplete: () => {
           // Restore original depth
           item.setDepth(originalDepth)
+          // Re-enable interactivity if it was enabled before
+          if (wasInteractive) {
+            item.setInteractive({ draggable: true })
+            // 📱 Re-enhance drag & drop for mobile
+            if (this.mobileHelper) {
+              this.mobileHelper.enhanceDragAndDrop(item)
+            }
+          }
           // Check if this creates a new match
           this.checkForElimination(fromRow + 1, fromCol)
         }
