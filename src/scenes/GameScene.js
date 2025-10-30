@@ -2694,14 +2694,19 @@ export class GameScene extends Phaser.Scene {
   }
 
   updateTargetDisplay() {
+    // Safety check for Zen mode where targets aren't displayed
+    if (!this.targetDisplays) {
+      return
+    }
+
     this.targetDisplays.forEach(display => {
       const current = this.eliminatedCounts[display.type]
       const target = display.target
-      
+
       if (current >= target) {
         display.text.setText(`✅ ${current}/${target}`)
         display.text.setColor('#32CD32')  // Lime green
-        
+
         // Add blinking effect when completed
         if (!display.completed) {
           display.completed = true
@@ -2719,7 +2724,7 @@ export class GameScene extends Phaser.Scene {
         display.text.setText(`${current}/${target}`)
       }
     })
-    
+
     // Check game end conditions after each target display update
     this.checkGameEnd()
   }
