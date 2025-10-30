@@ -73,17 +73,23 @@ export class TitleScene extends Phaser.Scene {
     backgroundBorder.strokeRoundedRect(30, 30, screenWidth - 60, screenHeight - 60, 10)
     backgroundBorder.setDepth(-150)
     
-    // Create Tom and Jerry style cartoon background
-    this.background = this.add.image(screenWidth / 2, screenHeight / 2, 'title_background')
-    
-    // Calculate scale ratio to ensure background covers entire screen
-    const scaleX = screenWidth / this.background.width
-    const scaleY = screenHeight / this.background.height
-    const scale = Math.max(scaleX, scaleY)
-    
-    this.background.setScale(scale)
-    this.background.setDepth(-100)
-    this.background.setAlpha(0.8) // Slightly transparent to make effect softer
+    // Create Tom and Jerry style cartoon background (fallback if asset missing)
+    if (this.textures.exists('title_background')) {
+      this.background = this.add.image(screenWidth / 2, screenHeight / 2, 'title_background')
+      const scaleX = screenWidth / this.background.width
+      const scaleY = screenHeight / this.background.height
+      const scale = Math.max(scaleX, scaleY)
+      this.background.setScale(scale)
+      this.background.setDepth(-100)
+      this.background.setAlpha(0.8)
+    } else {
+      // Fallback gradient background
+      const bg = this.add.graphics()
+      bg.fillGradientStyle(0x87CEEB, 0x87CEEB, 0xFFF8DC, 0xFFF8DC, 0.9)
+      bg.fillRect(0, 0, screenWidth, screenHeight)
+      bg.setDepth(-100)
+      console.warn('⚠️ title_background texture missing, using gradient fallback')
+    }
     
     // Add decorative dots
     const backgroundOverlay = this.add.graphics()
@@ -179,17 +185,27 @@ export class TitleScene extends Phaser.Scene {
     const screenWidth = this.cameras.main.width
     const screenHeight = this.cameras.main.height
     
-    // Create game title
-    this.gameTitle = this.add.image(screenWidth / 2, screenHeight * 0.25, 'game_title')
-    
-    // Adapt title size - enlarge title
-    const maxTitleWidth = screenWidth * 0.95  // Increase from 0.85 to 0.95
-    const maxTitleHeight = screenHeight * 0.45  // Increase from 0.35 to 0.45
-    
-    if (this.gameTitle.width / this.gameTitle.height > maxTitleWidth / maxTitleHeight) {
-      this.gameTitle.setScale(maxTitleWidth / this.gameTitle.width)
+    // Create game title (fallback to text if texture missing)
+    if (this.textures.exists('game_title')) {
+      this.gameTitle = this.add.image(screenWidth / 2, screenHeight * 0.25, 'game_title')
+      const maxTitleWidth = screenWidth * 0.95
+      const maxTitleHeight = screenHeight * 0.45
+      if (this.gameTitle.width / this.gameTitle.height > maxTitleWidth / maxTitleHeight) {
+        this.gameTitle.setScale(maxTitleWidth / this.gameTitle.width)
+      } else {
+        this.gameTitle.setScale(maxTitleHeight / this.gameTitle.height)
+      }
     } else {
-      this.gameTitle.setScale(maxTitleHeight / this.gameTitle.height)
+      this.gameTitle = this.add.text(screenWidth / 2, screenHeight * 0.25, 'Tom & Jerry', {
+        fontSize: `${window.getResponsiveFontSize(56)}px`,
+        fontFamily: window.getGameFont(),
+        color: '#FFFFFF',
+        stroke: '#000000',
+        strokeThickness: this.isMobile ? 8 : 6,
+        align: 'center',
+        fontStyle: 'bold'
+      }).setOrigin(0.5, 0.5)
+      console.warn('⚠️ game_title texture missing, using text fallback')
     }
     
     // Add title animation
@@ -228,10 +244,26 @@ export class TitleScene extends Phaser.Scene {
     const screenWidth = this.cameras.main.width
     const screenHeight = this.cameras.main.height
     
-    // Create start game button
-    this.startButton = this.add.image(screenWidth / 2, screenHeight * 0.7, 'cartoon_button')
-      .setInteractive()
-      .setScale(0.4)
+    // Create start game button (fallback to drawn button if texture missing)
+    if (this.textures.exists('cartoon_button')) {
+      this.startButton = this.add.image(screenWidth / 2, screenHeight * 0.7, 'cartoon_button')
+        .setInteractive()
+        .setScale(0.4)
+    } else {
+      const w = 320
+      const h = 80
+      const x = screenWidth / 2
+      const y = screenHeight * 0.7
+      const btn = this.add.graphics()
+      btn.fillGradientStyle(0x4169E1, 0x4169E1, 0x6495ED, 0x6495ED, 0.95)
+      btn.fillRoundedRect(x - w/2, y - h/2, w, h, 16)
+      btn.lineStyle(4, 0xFFFFFF, 0.9)
+      btn.strokeRoundedRect(x - w/2, y - h/2, w, h, 16)
+      const zone = this.add.zone(x, y, w, h).setInteractive()
+      this.startButton = zone
+      this._startButtonBg = btn
+      console.warn('⚠️ cartoon_button texture missing, using drawn button fallback')
+    }
     
     // Button text - use more cartoon style
     this.startButtonText = this.add.text(screenWidth / 2, screenHeight * 0.7, 'START GAME', {
@@ -277,12 +309,16 @@ export class TitleScene extends Phaser.Scene {
     })
     
     this.startButton.on('pointerout', () => {
-      this.startButton.setScale(0.4)
+      if (this.startButton.setScale) {
+        this.startButton.setScale(0.4)
+      }
       this.startButtonText.setScale(1)
     })
     
     this.startButton.on('pointerdown', () => {
-      this.startButton.setScale(0.35)
+      if (this.startButton.setScale) {
+        this.startButton.setScale(0.35)
+      }
       this.startButtonText.setScale(0.9)
     })
     
