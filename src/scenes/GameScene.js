@@ -1240,29 +1240,34 @@ export class GameScene extends Phaser.Scene {
     
     // 🎯 Get current level target types from random targets!
     const targetTypes = this.levelTargets.map(t => t.type)
-    
+
     // 🎲 GUARANTEE AT LEAST ONE MATCH-3 COMBO!
     // Place first 3 items of the same type close to each other
     let guaranteedItemType = targetTypes[Phaser.Math.Between(0, targetTypes.length - 1)]
-    
+
     for (let i = 0; i < Math.min(3, allPositions.length); i++) {
       const pos = allPositions[i]
       this.addItemToSlot(pos.row, pos.col, guaranteedItemType, pos.position)
     }
-    
+
     // Fill remaining positions
     for (let i = 3; i < filledPositions; i++) {
       const pos = allPositions[i]
       let itemType
-      
+
       // 🎯 HARDER: First 20 items have 50% chance to be target items
       // Reduced from 65% to make it more challenging!
-      if (i < 20 && Math.random() < gameConfig.targetItemSpawnChanceStart.value / 100) {
+      // 🌊 CASCADE MODE: Increase spawn rate for more items
+      const spawnChance = this.selectedGameMode === 'cascade' ?
+        Math.max(gameConfig.targetItemSpawnChanceStart.value / 100, 0.7) : // 70% minimum for cascade
+        gameConfig.targetItemSpawnChanceStart.value / 100
+
+      if (i < 20 && Math.random() < spawnChance) {
         itemType = targetTypes[Phaser.Math.Between(0, targetTypes.length - 1)]
       } else {
         itemType = this.getRandomItemType()
       }
-      
+
       this.addItemToSlot(pos.row, pos.col, itemType, pos.position)
     }
     
@@ -2799,7 +2804,13 @@ export class GameScene extends Phaser.Scene {
 
       // 🎯 HARDER: 55% chance for EACH item to be a target if needed
       // Reduced from 70% to make it more challenging!
-      if (incompleteTargets.length > 0 && Math.random() < gameConfig.targetItemSpawnChanceRefill.value / 100) {
+      // 🌊 CASCADE MODE: Increase spawn rate for more items
+      const baseSpawnChance = gameConfig.targetItemSpawnChanceRefill.value / 100
+      const spawnChance = this.selectedGameMode === 'cascade' ?
+        Math.max(baseSpawnChance, 0.8) : // 80% minimum for cascade refill
+        baseSpawnChance
+  
+      if (incompleteTargets.length > 0 && Math.random() < spawnChance) {
         itemType = incompleteTargets[Phaser.Math.Between(0, incompleteTargets.length - 1)]
       } else {
         // Other items: random selection from all types (includes 15% obstacle chance)
@@ -4180,13 +4191,18 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // 🌊 Check if an item can fall (has empty space below)
+  // 🌊 Check if an item can fall (cascade mode allows falling on occupied positions)
   canItemFall(row, col, position) {
     // Items fall downward in the grid
     if (row >= gameConfig.gridRows.value - 1) return false // Already at bottom
 
+    // In cascade mode, items can always fall (even on occupied positions)
+    if (this.selectedGameMode === 'cascade') {
+      return true
+    }
+
+    // Normal mode: only fall if there's empty space below
     const belowCell = this.gridData[row + 1][col]
-    // Check if there's an empty position below
     return belowCell.positions.some(pos => pos === null)
   }
 
@@ -4195,71 +4211,99 @@ export class GameScene extends Phaser.Scene {
     const item = this.gridData[fromRow][fromCol].items[fromPosition]
     if (!item) return
 
-    // Find empty position in the slot below
     const belowCell = this.gridData[fromRow + 1][fromCol]
-    const emptyPos = belowCell.positions.findIndex(pos => pos === null)
 
-    if (emptyPos !== -1) {
-      // Remove from current position
-      const oldGridCell = this.gridData[fromRow][fromCol]
-      oldGridCell.positions[fromPosition] = null
-      const itemIndex = oldGridCell.items.indexOf(item)
-      if (itemIndex > -1) {
-        oldGridCell.items.splice(itemIndex, 1)
+    // In cascade mode, find ANY available position (including occupied ones)
+    let targetPos
+    if (this.selectedGameMode === 'cascade') {
+      // Find first available position, preferring empty ones but allowing occupied
+      targetPos = belowCell.positions.findIndex(pos => pos === null)
+      if (targetPos === -1) {
+        // All positions occupied, pick the first one (will delete existing item)
+        targetPos = 0
       }
-
-      // Add to new position
-      const newGridCell = this.gridData[fromRow + 1][fromCol]
-      item.gridRow = fromRow + 1
-      item.gridCol = fromCol
-      item.positionIndex = emptyPos
-
-      newGridCell.positions[emptyPos] = item.itemType
-      newGridCell.items.push(item)
-
-      // Update item position
-      const newSlot = this.gridSlots[fromRow + 1][fromCol]
-      const offset = newSlot.positionOffsets[emptyPos]
-      const newY = newSlot.y + offset.y
-
-      // Set higher depth during animation to prevent overlap issues
-      const originalDepth = item.depth
-      item.setDepth(200)
-
-      // Temporarily disable interactivity during animation to prevent conflicts
-      const wasInteractive = item.input && item.input.enabled
-      if (wasInteractive) {
-        item.disableInteractive()
-      }
-
-      // Animate falling with bounce
-      this.tweens.add({
-        targets: item,
-        y: newY,
-        duration: 400,
-        ease: 'Bounce.easeOut',
-        onComplete: () => {
-          // Restore original depth
-          item.setDepth(originalDepth)
-          // Re-enable interactivity if it was enabled before
-          if (wasInteractive) {
-            item.setInteractive({ draggable: true })
-            // 📱 Re-enhance drag & drop for mobile
-            if (this.mobileHelper) {
-              this.mobileHelper.enhanceDragAndDrop(item)
-            }
-          }
-          // Check if this creates a new match
-          this.checkForElimination(fromRow + 1, fromCol)
-        }
-      })
-
-      // Update position indicators
-      this.updatePositionIndicator(fromRow, fromCol, fromPosition, null)
-      this.updatePositionIndicator(fromRow + 1, fromCol, emptyPos, item.itemType)
-
-      console.log(`🌊 Item fell from (${fromRow},${fromCol}) to (${fromRow + 1},${fromCol})`)
+    } else {
+      // Normal mode: only fall to empty positions
+      targetPos = belowCell.positions.findIndex(pos => pos === null)
+      if (targetPos === -1) return // No empty position
     }
+
+    // If target position is occupied in cascade mode, delete the existing item
+    if (this.selectedGameMode === 'cascade' && belowCell.positions[targetPos] !== null) {
+      const existingItem = belowCell.items[targetPos]
+      if (existingItem) {
+        // Create deletion effect for the item being crushed
+        this.createItemDeletionEffect(existingItem)
+
+        // Remove the existing item
+        belowCell.positions[targetPos] = null
+        const existingIndex = belowCell.items.indexOf(existingItem)
+        if (existingIndex > -1) {
+          belowCell.items.splice(existingIndex, 1)
+        }
+        existingItem.destroy()
+      }
+    }
+
+    // Remove from current position
+    const oldGridCell = this.gridData[fromRow][fromCol]
+    oldGridCell.positions[fromPosition] = null
+    const itemIndex = oldGridCell.items.indexOf(item)
+    if (itemIndex > -1) {
+      oldGridCell.items.splice(itemIndex, 1)
+    }
+
+    // Add to new position
+    const newGridCell = this.gridData[fromRow + 1][fromCol]
+    item.gridRow = fromRow + 1
+    item.gridCol = fromCol
+    item.positionIndex = targetPos
+
+    newGridCell.positions[targetPos] = item.itemType
+    newGridCell.items.push(item)
+
+    // Update item position
+    const newSlot = this.gridSlots[fromRow + 1][fromCol]
+    const offset = newSlot.positionOffsets[targetPos]
+    const newY = newSlot.y + offset.y
+
+    // Set higher depth during animation to prevent overlap issues
+    const originalDepth = item.depth
+    item.setDepth(200)
+
+    // Temporarily disable interactivity during animation to prevent conflicts
+    const wasInteractive = item.input && item.input.enabled
+    if (wasInteractive) {
+      item.disableInteractive()
+    }
+
+    // Animate falling with bounce
+    this.tweens.add({
+      targets: item,
+      y: newY,
+      duration: 400,
+      ease: 'Bounce.easeOut',
+      onComplete: () => {
+        // Restore original depth
+        item.setDepth(originalDepth)
+        // Re-enable interactivity if it was enabled before
+        if (wasInteractive) {
+          item.setInteractive({ draggable: true })
+          // 📱 Re-enhance drag & drop for mobile
+          if (this.mobileHelper) {
+            this.mobileHelper.enhanceDragAndDrop(item)
+          }
+        }
+        // Check if this creates a new match
+        this.checkForElimination(fromRow + 1, fromCol)
+      }
+    })
+
+    // Update position indicators
+    this.updatePositionIndicator(fromRow, fromCol, fromPosition, null)
+    this.updatePositionIndicator(fromRow + 1, fromCol, targetPos, item.itemType)
+
+    console.log(`🌊 Item fell from (${fromRow},${fromCol}) to (${fromRow + 1},${fromCol})`)
   }
 
   // 🌊 Create water ripple effect at cascade point
@@ -4307,6 +4351,61 @@ export class GameScene extends Phaser.Scene {
          onComplete: () => droplet.destroy()
        })
      }
+   }
+
+   // 🌊 Create deletion effect for items being crushed in cascade
+   createItemDeletionEffect(item) {
+     const x = item.x
+     const y = item.y
+
+     // Create explosion particles
+     for (let i = 0; i < 6; i++) {
+       const particle = this.add.graphics()
+       particle.fillStyle(0xFFD700, 0.8) // Gold particles
+       particle.fillCircle(0, 0, Phaser.Math.Between(3, 8))
+       particle.setPosition(x, y)
+       particle.setDepth(1000)
+
+       const angle = (i / 6) * Math.PI * 2
+       const distance = Phaser.Math.Between(20, 50)
+
+       this.tweens.add({
+         targets: particle,
+         x: x + Math.cos(angle) * distance,
+         y: y + Math.sin(angle) * distance,
+         alpha: 0,
+         scale: 0.3,
+         duration: Phaser.Math.Between(400, 700),
+         ease: 'Power2',
+         delay: i * 30,
+         onComplete: () => particle.destroy()
+       })
+     }
+
+     // Add spark effects
+     for (let i = 0; i < 4; i++) {
+       const spark = this.add.text(x, y, '✨', {
+         fontSize: '14px'
+       }).setOrigin(0.5, 0.5).setDepth(1000)
+
+       const angle = Phaser.Math.Between(0, Math.PI * 2)
+       const distance = Phaser.Math.Between(15, 35)
+
+       this.tweens.add({
+         targets: spark,
+         x: x + Math.cos(angle) * distance,
+         y: y + Math.sin(angle) * distance,
+         alpha: 0,
+         scale: 0.5,
+         duration: 500,
+         ease: 'Power2',
+         delay: i * 50,
+         onComplete: () => spark.destroy()
+       })
+     }
+
+     // Play deletion sound
+     this.sound.play('item_drop', { volume: audioConfig.sfxVolume.value * 0.6 })
    }
 
    // 🌊 Make an item fall off screen (bottom row cascade)
