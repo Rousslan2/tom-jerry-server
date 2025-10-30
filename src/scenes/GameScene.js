@@ -4284,18 +4284,21 @@ export class GameScene extends Phaser.Scene {
       duration: 400,
       ease: 'Bounce.easeOut',
       onComplete: () => {
-        // Restore original depth
-        item.setDepth(originalDepth)
-        // Re-enable interactivity if it was enabled before
-        if (wasInteractive) {
-          item.setInteractive({ draggable: true })
-          // 📱 Re-enhance drag & drop for mobile
-          if (this.mobileHelper) {
-            this.mobileHelper.enhanceDragAndDrop(item)
+        // Check if item still exists and is active
+        if (item && item.active && !item.destroyed) {
+          // Restore original depth
+          item.setDepth(originalDepth)
+          // Re-enable interactivity if it was enabled before
+          if (wasInteractive) {
+            item.setInteractive({ draggable: true })
+            // 📱 Re-enhance drag & drop for mobile
+            if (this.mobileHelper) {
+              this.mobileHelper.enhanceDragAndDrop(item)
+            }
           }
+          // Check if this creates a new match
+          this.checkForElimination(fromRow + 1, fromCol)
         }
-        // Check if this creates a new match
-        this.checkForElimination(fromRow + 1, fromCol)
       }
     })
 
