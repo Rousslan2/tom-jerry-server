@@ -2806,20 +2806,11 @@ export class GameScene extends Phaser.Scene {
         itemType = this.getRandomItemType()
       }
 
-      // 🌊 CASCADE MODE: Delay spawning new items to prevent overlap with falling items
-      if (this.selectedGameMode === 'cascade') {
-        this.time.delayedCall(i * 150, () => {
-          this.addItemToSlot(row, col, itemType)
-        })
-      } else {
-        this.addItemToSlot(row, col, itemType)
-      }
+      this.addItemToSlot(row, col, itemType)
     }
 
     // 🔧 CRITICAL FIX: After refilling, check for matches in the newly filled slot
-    // 🌊 CASCADE MODE: Longer delay to account for staggered spawning
-    const checkDelay = this.selectedGameMode === 'cascade' ? 800 : 200
-    this.time.delayedCall(checkDelay, () => {
+    this.time.delayedCall(200, () => {
       if (!this.gameOver && !this.levelComplete) {
         this.checkForElimination(row, col)
       }
