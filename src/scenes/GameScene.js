@@ -5016,6 +5016,8 @@ export class GameScene extends Phaser.Scene {
 
   // 👹 Handle boss battle move logic
   handleBossBattleMove() {
+    if (!this.bossBattle.active) return
+
     this.bossBattle.moveCounter++
 
     // Update UI
@@ -5178,6 +5180,8 @@ export class GameScene extends Phaser.Scene {
 
   // 👹 Boss battle timeout
   bossBattleTimeout() {
+    if (!this.bossBattle.active || this.bossBattle.defeated) return
+
     console.log('⏰ Boss battle timeout!')
 
     // Boss victory effects
