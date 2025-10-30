@@ -704,7 +704,35 @@ export class GameScene extends Phaser.Scene {
 
     // 🎮 For Cascade mode, show special description
     if (this.selectedGameMode === 'cascade') {
-      this.targetText.setText('🌊 CASCADE MODE - CHAIN REACTIONS! 🌊')
+      // Create special cascade mode UI
+      this.targetBg = this.add.graphics()
+      this.targetBg.fillGradientStyle(0x1E90FF, 0x1E90FF, 0x4169E1, 0x4169E1, 0.95)
+      this.targetBg.fillRoundedRect(20, 20, screenWidth * 0.3, 120, 20)
+
+      this.targetBg.lineStyle(4, 0xFFFFFF, 0.9)
+      this.targetBg.strokeRoundedRect(20, 20, screenWidth * 0.3, 120, 20)
+      this.targetBg.setDepth(2000)
+
+      this.targetText = this.add.text(screenWidth * 0.15, 35, '🌊 CASCADE MODE', {
+        fontSize: `${window.getResponsiveFontSize(20)}px`,
+        fontFamily: window.getGameFont(),
+        color: '#FFFFFF',
+        stroke: '#000000',
+        strokeThickness: 3,
+        align: 'center',
+        fontStyle: 'bold'
+      }).setOrigin(0.5, 0.5).setDepth(2100)
+
+      const cascadeDesc = this.add.text(screenWidth * 0.15, 80, 'Chain Reactions!\nItems fall & create combos!', {
+        fontSize: `${window.getResponsiveFontSize(14)}px`,
+        fontFamily: window.getGameFont(),
+        color: '#FFFFFF',
+        stroke: '#000000',
+        strokeThickness: 2,
+        align: 'center',
+        fontStyle: 'bold'
+      }).setOrigin(0.5, 0.5).setDepth(2100)
+
       return
     }
 
