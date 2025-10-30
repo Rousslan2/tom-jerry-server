@@ -692,22 +692,28 @@ export class GameScene extends Phaser.Scene {
   createUI() {
     const screenWidth = this.cameras.main.width
     const screenHeight = this.cameras.main.height
-    
+
     // Create UI container
     this.uiContainer = this.add.container(0, 0)
-    
-    // Target display
-    this.createTargetDisplay()
-    
-    // Move counter
-    this.createMoveCounter()
-    
-    // ⭐ NEW: Score display
-    this.createScoreDisplay()
-    
+
+    // Target display (only for non-boss modes)
+    if (this.selectedGameMode !== 'boss_battle') {
+      this.createTargetDisplay()
+    }
+
+    // Move counter (only for non-boss modes)
+    if (this.selectedGameMode !== 'boss_battle') {
+      this.createMoveCounter()
+    }
+
+    // ⭐ Score display (only for non-boss modes)
+    if (this.selectedGameMode !== 'boss_battle') {
+      this.createScoreDisplay()
+    }
+
     // Pause button
     this.createPauseButton()
-    
+
     // Opponent stats (online mode only)
     if (this.gameMode === 'online') {
       this.createOpponentStatsPanel()
