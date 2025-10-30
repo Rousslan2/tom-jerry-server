@@ -2684,19 +2684,19 @@ export class GameScene extends Phaser.Scene {
   refillSlot(row, col) {
     // Always refill with 3 items to keep gameplay flowing
     const itemCount = 3
-    
+
     // 🎯 Get all level targets (now using random targets from levelTargets!)
     const targetTypes = this.levelTargets.map(t => t.type)
-    
+
     // Check which targets are not yet completed
     const incompleteTargets = targetTypes.filter(itemType => {
       const target = this.levelTargets.find(t => t.type === itemType)
       return target && this.eliminatedCounts[itemType] < target.count
     })
-    
+
     for (let i = 0; i < itemCount; i++) {
       let itemType
-      
+
       // 🎯 HARDER: 55% chance for EACH item to be a target if needed
       // Reduced from 70% to make it more challenging!
       if (incompleteTargets.length > 0 && Math.random() < gameConfig.targetItemSpawnChanceRefill.value / 100) {
@@ -2705,9 +2705,16 @@ export class GameScene extends Phaser.Scene {
         // Other items: random selection from all types (includes 15% obstacle chance)
         itemType = this.getRandomItemType()
       }
-      
+
       this.addItemToSlot(row, col, itemType)
     }
+
+    // 🔧 CRITICAL FIX: After refilling, check for matches in the newly filled slot
+    this.time.delayedCall(200, () => {
+      if (!this.gameOver && !this.levelComplete) {
+        this.checkForElimination(row, col)
+      }
+    })
   }
 
   updateTargetDisplay() {
