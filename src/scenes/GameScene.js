@@ -2736,7 +2736,7 @@ export class GameScene extends Phaser.Scene {
     let comboText = ''
     let comboColor = '#FFD700' // Gold by default
     let comboFontSize = '22px'
-    
+
     if (this.combo >= 5) {
       comboText = `🔥 MEGA COMBO x${this.combo}! 🔥`
       comboColor = '#FF4500' // Red-orange
@@ -2750,7 +2750,7 @@ export class GameScene extends Phaser.Scene {
       comboColor = '#FFD700' // Gold
       comboFontSize = '22px'
     }
-    
+
     // Show combo text if combo > 1
     if (this.combo > 1) {
       const comboTextObj = this.add.text(x, y - 80, comboText, {
@@ -2761,7 +2761,7 @@ export class GameScene extends Phaser.Scene {
         strokeThickness: 4,
         fontStyle: 'bold'
       }).setOrigin(0.5, 0.5).setDepth(10001)
-      
+
       // Combo text animation - bigger bounce for higher combos
       this.tweens.add({
         targets: comboTextObj,
