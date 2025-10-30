@@ -62,9 +62,8 @@ export class GameModeMenuScene extends Phaser.Scene {
     }).setOrigin(0.5, 0.5).setDepth(1000)
     
     // Mode buttons
-    this.createModeButton('🏃 CLASSIC MODE', 'Complete objectives in 50 moves!', screenHeight * 0.25, 'classic', 0x4169E1)
-    this.createModeButton('⏱️ TIME ATTACK', 'Race against time! 2 minutes!', screenHeight * 0.40, 'time_attack', 0xFF6347)
-    this.createModeButton('♾️ ENDLESS MODE', 'No limits! Score as much as you can!', screenHeight * 0.55, 'endless', 0x9370DB)
+    this.createModeButton('🏃 CLASSIC MODE', 'Complete objectives in 50 moves!', screenHeight * 0.30, 'classic', 0x4169E1)
+    this.createModeButton('⏱️ TIME ATTACK', 'Race against time! 2 minutes!', screenHeight * 0.50, 'time_attack', 0xFF6347)
     this.createModeButton('🏆 ZEN MODE', 'Relax! No moves/time limit!', screenHeight * 0.70, 'zen', 0x32CD32)
     
     // Back button
