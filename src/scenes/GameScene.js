@@ -1684,36 +1684,12 @@ export class GameScene extends Phaser.Scene {
     if (this.gameOver || this.levelComplete) {
       return
     }
-    
-    // Count items by type across all grid
-    const itemCounts = {}
-    
-    this.gridSlots.forEach((row, rowIndex) => {
-      row.forEach((slot, colIndex) => {
-        const gridCell = this.gridData[rowIndex][colIndex]
-        if (gridCell && gridCell.items) {
-          gridCell.items.forEach((item) => {
-            const itemType = item.itemType
-            // Skip obstacles
-            if (itemType !== 'anvil_obstacle' && itemType !== 'safe_obstacle' && itemType !== 'piano_obstacle') {
-              itemCounts[itemType] = (itemCounts[itemType] || 0) + 1
-            }
-          })
-        }
-      })
-    })
-    
-    // Check if any item type has at least 3 items
-    let hasPossibleMatch = false
-    for (let itemType in itemCounts) {
-      if (itemCounts[itemType] >= 3) {
-        hasPossibleMatch = true
-        break
-      }
-    }
-    
+
+    // Use the same sophisticated logic as findPossibleMatches()
+    const possibleMatches = this.findPossibleMatches()
+
     // 🚨 NO POSSIBLE MOVES! Help the player!
-    if (!hasPossibleMatch) {
+    if (possibleMatches === 0) {
       console.log('🚨 NO POSSIBLE MOVES DETECTED! Adding helpful items...')
       this.addHelpfulItems()
     }
