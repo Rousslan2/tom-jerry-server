@@ -2502,6 +2502,10 @@ export class GameScene extends Phaser.Scene {
         if (this.selectedGameMode === 'cascade') {
           this.time.delayedCall(300, () => {
             this.triggerCascadeEffect(row, col)
+            // Spawn additional items from top after cascade
+            this.time.delayedCall(800, () => {
+              this.spawnCascadeItemsFromTop()
+            })
           })
         }
       })
@@ -4554,5 +4558,95 @@ export class GameScene extends Phaser.Scene {
          })
        }
      }
+   }
+
+   // 🌊 Spawn additional items from top in cascade mode
+   spawnCascadeItemsFromTop() {
+     if (this.selectedGameMode !== 'cascade') return
+
+     const rows = gameConfig.gridRows.value
+     const cols = gameConfig.gridCols.value
+
+     // Find empty positions in the top rows to spawn new items
+     const emptyPositions = []
+     for (let row = 0; row < Math.min(2, rows); row++) { // Focus on top 2 rows
+       for (let col = 0; col < cols; col++) {
+         const gridCell = this.gridData[row][col]
+         for (let pos = 0; pos < 3; pos++) {
+           if (gridCell.positions[pos] === null) {
+             emptyPositions.push({ row, col, pos })
+           }
+         }
+       }
+     }
+
+     // Shuffle and take up to 6 positions to fill
+     Phaser.Utils.Array.Shuffle(emptyPositions)
+     const positionsToFill = emptyPositions.slice(0, Math.min(6, emptyPositions.length))
+
+     if (positionsToFill.length === 0) return
+
+     // Get target types for cascade mode
+     const targetTypes = this.levelTargets.map(t => t.type)
+
+     positionsToFill.forEach((pos, index) => {
+       this.time.delayedCall(index * 100, () => {
+         // Higher chance for target items in cascade mode
+         let itemType
+         if (Math.random() < 0.7) { // 70% chance for target items
+           itemType = targetTypes[Phaser.Math.Between(0, targetTypes.length - 1)]
+         } else {
+           itemType = this.getRandomItemType()
+         }
+
+         // Create item above the screen
+         const slot = this.gridSlots[pos.row][pos.col]
+         const offset = slot.positionOffsets[pos.pos]
+
+         const item = this.add.image(slot.x + offset.x, -100, itemType)
+           .setScale(0.075)
+           .setAlpha(1)
+
+         // Make it interactive
+         item.setInteractive({ draggable: true })
+         if (this.mobileHelper) {
+           this.mobileHelper.enhanceDragAndDrop(item)
+         }
+
+         // Apply enhancements
+         this.applyTomJerryItemEnhancement(item)
+         this.applyHighQualityRendering(item)
+
+         // Store item info
+         item.itemType = itemType
+         item.gridRow = pos.row
+         item.gridCol = pos.col
+         item.positionIndex = pos.pos
+
+         // Animate falling from top
+         this.tweens.add({
+           targets: item,
+           y: slot.y + offset.y,
+           duration: 600,
+           ease: 'Bounce.easeOut',
+           delay: index * 50,
+           onComplete: () => {
+             // Update grid data
+             this.gridData[pos.row][pos.col].positions[pos.pos] = itemType
+             this.gridData[pos.row][pos.col].items.push(item)
+
+             this.updatePositionIndicator(pos.row, pos.col, pos.pos, itemType)
+
+             // Check for matches
+             this.checkForElimination(pos.row, pos.col)
+           }
+         })
+
+         // Play spawn sound
+         this.sound.play('item_drop', { volume: audioConfig.sfxVolume.value * 0.8 })
+       })
+     })
+
+     console.log(`🌊 Spawned ${positionsToFill.length} additional items from top in cascade mode`)
    }
 }
