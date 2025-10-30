@@ -16,7 +16,7 @@ export class GameScene extends Phaser.Scene {
     this.gameMode = 'single' // 'single' or 'online'
     this.isHost = false
     
-    // 🎮 NEW: Game mode type (classic, time_attack, endless, zen, rush)
+    // 🎮 NEW: Game mode type (classic, time_attack, endless, zen, rush, boss_battle)
     this.selectedGameMode = 'classic'
     
     // 🎯 NOTE: Random targets will be generated AFTER gameMode is set in init()
@@ -155,7 +155,7 @@ export class GameScene extends Phaser.Scene {
       this.isHost = data.isHost || false
     }
     
-    // 🎮 NEW: Set game mode type (classic/time_attack/endless/zen)
+    // 🎮 NEW: Set game mode type (classic/time_attack/endless/zen/rush/boss_battle)
     if (data && data.gameMode) {
       this.selectedGameMode = data.gameMode
       console.log('🎮 Game Mode:', this.selectedGameMode)
@@ -218,6 +218,11 @@ export class GameScene extends Phaser.Scene {
     // ⚡ Start timer for Rush mode (inverted timer - gain time!)
     if (this.selectedGameMode === 'rush') {
       this.startRushTimer()
+    }
+
+    // 👹 Initialize Boss Battle mode
+    if (this.selectedGameMode === 'boss_battle') {
+      this.initializeBossBattle()
     }
     
     // 🎬 Start obstacle spawn timer - spawn Tom & Jerry obstacles regularly
@@ -2148,6 +2153,11 @@ export class GameScene extends Phaser.Scene {
       // Increase move counter
       this.currentMoves++
       this.updateMoveCounter()
+
+      // 👹 Boss Battle: Track moves and check boss mechanics
+      if (this.selectedGameMode === 'boss_battle') {
+        this.handleBossBattleMove()
+      }
       
       // 🔍 CRITICAL: Check ALL cells for matches after placement
       this.time.delayedCall(100, () => {
@@ -2461,6 +2471,11 @@ export class GameScene extends Phaser.Scene {
 
     // Mark as eliminating
     gridCell.isEliminating = true
+
+    // 👹 Boss Battle: Check if elimination is adjacent to boss
+    if (this.selectedGameMode === 'boss_battle' && !this.bossBattle.defeated) {
+      this.checkBossAdjacentElimination(row, col)
+    }
 
     // ⭐ NEW: Combo system logic
     const currentTime = this.time.now
@@ -3994,8 +4009,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   checkGameEnd() {
-    // 🎮 Endless/Zen/Rush mode - no game over conditions, no victory conditions either!
-    if (this.selectedGameMode === 'endless' || this.selectedGameMode === 'zen' || this.selectedGameMode === 'rush') {
+    // 🎮 Endless/Zen/Rush/Boss Battle mode - no game over conditions, no victory conditions either!
+    if (this.selectedGameMode === 'endless' || this.selectedGameMode === 'zen' || this.selectedGameMode === 'rush' || this.selectedGameMode === 'boss_battle') {
       // Pure relaxation mode - no win/lose conditions
       // Just keep playing forever!
       return
@@ -4614,6 +4629,284 @@ export class GameScene extends Phaser.Scene {
     return belowCell.positions.some(pos => pos === null)
   }
 
+  // 👹 Initialize Boss Battle mode
+  initializeBossBattle() {
+    console.log('👹 Boss Battle mode activated!')
+
+    // Boss battle state
+    this.bossBattle = {
+      active: true,
+      boss: null,
+      bossRow: -1,
+      bossCol: -1,
+      blockedSlots: new Set(),
+      adjacentEliminations: 0,
+      requiredEliminations: 5,
+      moveCounter: 0,
+      moveLimit: 10,
+      bossMoveInterval: 5,
+      defeated: false
+    }
+
+    // Epic boss battle music
+    this.playBossBattleMusic()
+
+    // Spawn the boss
+    this.spawnBoss()
+
+    // Show boss battle UI
+    this.createBossBattleUI()
+
+    // Screen shake and particles
+    this.createBossBattleEffects()
+  }
+
+  // 👹 Spawn Tom as boss
+  spawnBoss() {
+    const rows = gameConfig.gridRows.value
+    const cols = gameConfig.gridCols.value
+
+    // Find a random slot in the middle area
+    const centerRow = Math.floor(rows / 2)
+    const centerCol = Math.floor(cols / 2)
+
+    // Try to spawn in center area
+    let attempts = 0
+    let bossRow, bossCol
+
+    do {
+      bossRow = centerRow + Phaser.Math.Between(-1, 1)
+      bossCol = centerCol + Phaser.Math.Between(-1, 1)
+      attempts++
+    } while (attempts < 10 && (bossRow < 0 || bossRow >= rows || bossCol < 0 || bossCol >= cols))
+
+    this.bossBattle.bossRow = bossRow
+    this.bossBattle.bossCol = bossCol
+
+    // Create boss sprite
+    const slot = this.gridSlots[bossRow][bossCol]
+    this.bossBattle.boss = this.add.image(slot.x, slot.y - 50, 'tom_cat_watching')
+      .setScale(0.25)
+      .setDepth(500)
+      .setTint(0xFF0000) // Red tint for boss
+
+    // Boss appears with dramatic effect
+    this.tweens.add({
+      targets: this.bossBattle.boss,
+      y: slot.y,
+      scale: 0.2,
+      duration: 1000,
+      ease: 'Bounce.easeOut',
+      onComplete: () => {
+        // Block adjacent slots
+        this.blockAdjacentSlots(bossRow, bossCol)
+      }
+    })
+
+    console.log(`👹 Boss Tom spawned at (${bossRow}, ${bossCol})`)
+  }
+
+  // 👹 Block adjacent slots around boss
+  blockAdjacentSlots(bossRow, bossCol) {
+    const rows = gameConfig.gridRows.value
+    const cols = gameConfig.gridCols.value
+
+    // Adjacent directions (including diagonals)
+    const directions = [
+      [-1, -1], [-1, 0], [-1, 1],
+      [0, -1],           [0, 1],
+      [1, -1],  [1, 0],  [1, 1]
+    ]
+
+    directions.forEach(([dRow, dCol]) => {
+      const adjRow = bossRow + dRow
+      const adjCol = bossCol + dCol
+
+      if (adjRow >= 0 && adjRow < rows && adjCol >= 0 && adjCol < cols) {
+        const slotKey = `${adjRow},${adjCol}`
+        this.bossBattle.blockedSlots.add(slotKey)
+
+        // Visual blocking effect
+        const slot = this.gridSlots[adjRow][adjCol]
+        const blockOverlay = this.add.graphics()
+        blockOverlay.fillStyle(0xFF0000, 0.7)
+        blockOverlay.fillRoundedRect(
+          slot.x - slot.width / 2,
+          slot.y - slot.height / 2,
+          slot.width,
+          slot.height,
+          8
+        )
+        blockOverlay.setDepth(400)
+
+        // Pulsing red glow
+        this.tweens.add({
+          targets: blockOverlay,
+          alpha: 0.3,
+          duration: 500,
+          yoyo: true,
+          repeat: -1
+        })
+
+        // Store reference for cleanup
+        if (!this.bossBlockOverlays) {
+          this.bossBlockOverlays = []
+        }
+        this.bossBlockOverlays.push(blockOverlay)
+      }
+    })
+
+    console.log(`🚫 Boss blocked ${this.bossBattle.blockedSlots.size} adjacent slots`)
+  }
+
+  // 👹 Create boss battle UI
+  createBossBattleUI() {
+    const screenWidth = this.cameras.main.width
+
+    // Boss health bar (eliminations needed)
+    this.bossHealthBg = this.add.graphics()
+    this.bossHealthBg.fillStyle(0x333333, 0.8)
+    this.bossHealthBg.fillRoundedRect(screenWidth * 0.35, 10, screenWidth * 0.3, 30, 5)
+    this.bossHealthBg.setDepth(2000)
+
+    this.bossHealthBar = this.add.graphics()
+    this.bossHealthBar.fillStyle(0xFF0000, 1)
+    this.bossHealthBar.fillRoundedRect(screenWidth * 0.35 + 2, 12, screenWidth * 0.3 - 4, 26, 3)
+    this.bossHealthBar.setDepth(2010)
+
+    this.bossHealthText = this.add.text(screenWidth * 0.5, 25, `👹 BOSS: ${this.bossBattle.adjacentEliminations}/${this.bossBattle.requiredEliminations}`, {
+      fontSize: `${window.getResponsiveFontSize(16)}px`,
+      fontFamily: window.getGameFont(),
+      color: '#FFFFFF',
+      stroke: '#000000',
+      strokeThickness: 2,
+      align: 'center',
+      fontStyle: 'bold'
+    }).setOrigin(0.5, 0.5).setDepth(2020)
+
+    // Move counter for boss battle
+    this.bossMoveText = this.add.text(screenWidth * 0.8, 25, `⏰ Moves: ${this.bossBattle.moveCounter}/${this.bossBattle.moveLimit}`, {
+      fontSize: `${window.getResponsiveFontSize(16)}px`,
+      fontFamily: window.getGameFont(),
+      color: '#FFFFFF',
+      stroke: '#000000',
+      strokeThickness: 2,
+      align: 'center',
+      fontStyle: 'bold'
+    }).setOrigin(0.5, 0.5).setDepth(2020)
+  }
+
+  // 👹 Update boss battle UI
+  updateBossBattleUI() {
+    if (!this.bossBattle.active) return
+
+    const screenWidth = this.cameras.main.width
+
+    // Update health bar
+    const healthPercent = this.bossBattle.adjacentEliminations / this.bossBattle.requiredEliminations
+    const barWidth = (screenWidth * 0.3 - 4) * healthPercent
+
+    this.bossHealthBar.clear()
+    this.bossHealthBar.fillStyle(0xFF0000, 1)
+    this.bossHealthBar.fillRoundedRect(screenWidth * 0.35 + 2, 12, barWidth, 26, 3)
+
+    // Update text
+    this.bossHealthText.setText(`👹 BOSS: ${this.bossBattle.adjacentEliminations}/${this.bossBattle.requiredEliminations}`)
+    this.bossMoveText.setText(`⏰ Moves: ${this.bossBattle.moveCounter}/${this.bossBattle.moveLimit}`)
+  }
+
+  // 👹 Play epic boss battle music
+  playBossBattleMusic() {
+    if (this.backgroundMusic && this.backgroundMusic.isPlaying) {
+      this.backgroundMusic.stop()
+    }
+
+    // Try to play boss battle music (fallback to regular if not available)
+    try {
+      this.backgroundMusic = this.sound.add('boss_battle_theme', {
+        volume: audioConfig.musicVolume.value * 1.2, // Louder for epic feel
+        loop: true
+      })
+      this.backgroundMusic.play()
+    } catch (error) {
+      // Fallback to regular music
+      this.backgroundMusic = this.sound.add('tom_jerry_80s_retro_theme', {
+        volume: audioConfig.musicVolume.value * 1.2,
+        loop: true
+      })
+      this.backgroundMusic.play()
+    }
+  }
+
+  // 👹 Create boss battle visual effects
+  createBossBattleEffects() {
+    // Screen shake
+    this.cameras.main.shake(1000, 0.005)
+
+    // Red tint overlay
+    this.bossOverlay = this.add.graphics()
+    this.bossOverlay.fillStyle(0xFF0000, 0.1)
+    this.bossOverlay.fillRect(0, 0, this.cameras.main.width, this.cameras.main.height)
+    this.bossOverlay.setDepth(100)
+
+    // Pulsing red overlay
+    this.tweens.add({
+      targets: this.bossOverlay,
+      alpha: 0.05,
+      duration: 2000,
+      yoyo: true,
+      repeat: -1
+    })
+
+    // Lightning effects
+    this.time.addEvent({
+      delay: 3000,
+      callback: () => {
+        if (this.bossBattle.active && !this.bossBattle.defeated) {
+          this.createLightningEffect()
+        }
+      },
+      loop: true
+    })
+  }
+
+  // 👹 Create lightning effect
+  createLightningEffect() {
+    const screenWidth = this.cameras.main.width
+    const screenHeight = this.cameras.main.height
+
+    const lightning = this.add.graphics()
+    lightning.lineStyle(3, 0xFFFFFF, 1)
+    lightning.strokeLineShape(new Phaser.Geom.Line(
+      Phaser.Math.Between(0, screenWidth),
+      0,
+      Phaser.Math.Between(0, screenWidth),
+      screenHeight
+    ))
+    lightning.setDepth(9999)
+
+    // Flash effect
+    this.tweens.add({
+      targets: lightning,
+      alpha: 0,
+      duration: 200,
+      onComplete: () => lightning.destroy()
+    })
+
+    // Screen flash
+    const flash = this.add.graphics()
+    flash.fillStyle(0xFFFFFF, 0.3)
+    flash.fillRect(0, 0, screenWidth, screenHeight)
+    flash.setDepth(9998)
+
+    this.tweens.add({
+      targets: flash,
+      alpha: 0,
+      duration: 100,
+      onComplete: () => flash.destroy()
+    })
+  }
+
   // Make an item fall to the slot below
   makeItemFall(fromRow, fromCol, fromPosition) {
     const item = this.gridData[fromRow][fromCol].items[fromPosition]
@@ -4719,6 +5012,270 @@ export class GameScene extends Phaser.Scene {
     this.updatePositionIndicator(fromRow + 1, fromCol, targetPos, item.itemType)
 
     console.log(`Item fell from (${fromRow},${fromCol}) to (${fromRow + 1},${fromCol})`)
+  }
+
+  // 👹 Handle boss battle move logic
+  handleBossBattleMove() {
+    this.bossBattle.moveCounter++
+
+    // Update UI
+    this.updateBossBattleUI()
+
+    // Check if boss should move (every 5 moves)
+    if (this.bossBattle.moveCounter % this.bossBattle.bossMoveInterval === 0) {
+      this.moveBoss()
+    }
+
+    // Check if boss defeated
+    if (this.bossBattle.adjacentEliminations >= this.bossBattle.requiredEliminations && !this.bossBattle.defeated) {
+      this.defeatBoss()
+    }
+    // Check if time's up
+    else if (this.bossBattle.moveCounter >= this.bossBattle.moveLimit) {
+      this.bossBattleTimeout()
+    }
+  }
+
+  // 👹 Check if elimination is adjacent to boss
+  checkBossAdjacentElimination(row, col) {
+    const bossRow = this.bossBattle.bossRow
+    const bossCol = this.bossBattle.bossCol
+
+    // Check if this slot is adjacent to boss (including diagonals)
+    const rowDiff = Math.abs(row - bossRow)
+    const colDiff = Math.abs(col - bossCol)
+
+    if (rowDiff <= 1 && colDiff <= 1 && !(rowDiff === 0 && colDiff === 0)) {
+      this.bossBattle.adjacentEliminations++
+      console.log(`👹 Boss damage! Adjacent elimination at (${row},${col}) - ${this.bossBattle.adjacentEliminations}/${this.bossBattle.requiredEliminations}`)
+
+      // Visual feedback - boss takes damage
+      this.tweens.add({
+        targets: this.bossBattle.boss,
+        scaleX: 0.22,
+        scaleY: 0.22,
+        duration: 100,
+        yoyo: true,
+        repeat: 1
+      })
+
+      // Update UI
+      this.updateBossBattleUI()
+    }
+  }
+
+  // 👹 Move boss to adjacent slot
+  moveBoss() {
+    const rows = gameConfig.gridRows.value
+    const cols = gameConfig.gridCols.value
+    const currentRow = this.bossBattle.bossRow
+    const currentCol = this.bossBattle.bossCol
+
+    // Find adjacent slots (not including current position)
+    const adjacentSlots = []
+    const directions = [
+      [-1, -1], [-1, 0], [-1, 1],
+      [0, -1],           [0, 1],
+      [1, -1],  [1, 0],  [1, 1]
+    ]
+
+    directions.forEach(([dRow, dCol]) => {
+      const newRow = currentRow + dRow
+      const newCol = currentCol + dCol
+      if (newRow >= 0 && newRow < rows && newCol >= 0 && newCol < cols) {
+        adjacentSlots.push({ row: newRow, col: newCol })
+      }
+    })
+
+    if (adjacentSlots.length === 0) return
+
+    // Choose random adjacent slot
+    const newSlot = adjacentSlots[Phaser.Math.Between(0, adjacentSlots.length - 1)]
+
+    // Clear old blocked slots
+    this.clearBossBlocks()
+
+    // Update boss position
+    this.bossBattle.bossRow = newSlot.row
+    this.bossBattle.bossCol = newSlot.col
+
+    // Move boss sprite
+    const newSlotSprite = this.gridSlots[newSlot.row][newSlot.col]
+    this.tweens.add({
+      targets: this.bossBattle.boss,
+      x: newSlotSprite.x,
+      y: newSlotSprite.y,
+      duration: 500,
+      ease: 'Power2'
+    })
+
+    // Block new adjacent slots
+    this.blockAdjacentSlots(newSlot.row, newSlot.col)
+
+    // Boss gets stronger - increase blocked area
+    this.bossBattle.requiredEliminations = Math.min(8, this.bossBattle.requiredEliminations + 1)
+
+    console.log(`👹 Boss moved to (${newSlot.row},${newSlot.col}) and got stronger! Now needs ${this.bossBattle.requiredEliminations} eliminations`)
+
+    // Screen shake when boss moves
+    this.cameras.main.shake(300, 0.01)
+  }
+
+  // 👹 Clear boss block overlays
+  clearBossBlocks() {
+    if (this.bossBlockOverlays) {
+      this.bossBlockOverlays.forEach(overlay => {
+        if (overlay && overlay.active) {
+          this.tweens.killTweensOf(overlay)
+          overlay.destroy()
+        }
+      })
+      this.bossBlockOverlays = []
+    }
+    this.bossBattle.blockedSlots.clear()
+  }
+
+  // 👹 Defeat the boss
+  defeatBoss() {
+    this.bossBattle.defeated = true
+    console.log('🎉 Boss defeated!')
+
+    // Victory effects
+    this.cameras.main.shake(1000, 0.02)
+
+    // Boss defeat animation
+    this.tweens.add({
+      targets: this.bossBattle.boss,
+      scale: 0,
+      rotation: Math.PI * 4,
+      alpha: 0,
+      duration: 1000,
+      ease: 'Power2',
+      onComplete: () => {
+        this.bossBattle.boss.destroy()
+      }
+    })
+
+    // Clear all blocks
+    this.clearBossBlocks()
+
+    // Bonus score
+    const bonusScore = 5000
+    this.score += bonusScore
+
+    // Show victory message
+    this.showBossVictoryMessage(bonusScore)
+
+    // Update UI
+    this.updateScoreDisplay()
+    this.updateBossBattleUI()
+
+    // Clear boss battle UI after delay
+    this.time.delayedCall(3000, () => {
+      this.clearBossBattleUI()
+    })
+  }
+
+  // 👹 Boss battle timeout
+  bossBattleTimeout() {
+    console.log('⏰ Boss battle timeout!')
+
+    // Boss victory effects
+    this.cameras.main.shake(1500, 0.03)
+
+    // Boss laughs
+    this.sound.play('tom_evil_laugh', { volume: audioConfig.sfxVolume.value })
+
+    // Show defeat message
+    this.showBossDefeatMessage()
+
+    // Clear boss battle after delay
+    this.time.delayedCall(3000, () => {
+      this.clearBossBattle()
+    })
+  }
+
+  // 👹 Show boss victory message
+  showBossVictoryMessage(bonusScore) {
+    const screenWidth = this.cameras.main.width
+    const screenHeight = this.cameras.main.height
+
+    const victoryText = this.add.text(screenWidth / 2, screenHeight / 2, `🎉 BOSS DEFEATED!\n+${bonusScore} BONUS SCORE!`, {
+      fontSize: `${window.getResponsiveFontSize(32)}px`,
+      fontFamily: window.getGameFont(),
+      color: '#FFD700',
+      stroke: '#000000',
+      strokeThickness: 4,
+      align: 'center',
+      fontStyle: 'bold'
+    }).setOrigin(0.5, 0.5).setDepth(10001)
+
+    this.tweens.add({
+      targets: victoryText,
+      scale: 1.2,
+      alpha: 0,
+      duration: 2000,
+      ease: 'Power2',
+      onComplete: () => victoryText.destroy()
+    })
+  }
+
+  // 👹 Show boss defeat message
+  showBossDefeatMessage() {
+    const screenWidth = this.cameras.main.width
+    const screenHeight = this.cameras.main.height
+
+    const defeatText = this.add.text(screenWidth / 2, screenHeight / 2, `💀 BOSS VICTORY!\nPower temporarily reduced...`, {
+      fontSize: `${window.getResponsiveFontSize(28)}px`,
+      fontFamily: window.getGameFont(),
+      color: '#FF0000',
+      stroke: '#000000',
+      strokeThickness: 4,
+      align: 'center',
+      fontStyle: 'bold'
+    }).setOrigin(0.5, 0.5).setDepth(10001)
+
+    this.tweens.add({
+      targets: defeatText,
+      scale: 1.1,
+      alpha: 0,
+      duration: 2500,
+      ease: 'Power2',
+      onComplete: () => defeatText.destroy()
+    })
+  }
+
+  // 👹 Clear boss battle UI
+  clearBossBattleUI() {
+    if (this.bossHealthBg) this.bossHealthBg.destroy()
+    if (this.bossHealthBar) this.bossHealthBar.destroy()
+    if (this.bossHealthText) this.bossHealthText.destroy()
+    if (this.bossMoveText) this.bossMoveText.destroy()
+    if (this.bossOverlay) this.bossOverlay.destroy()
+  }
+
+  // 👹 Clear entire boss battle
+  clearBossBattle() {
+    this.bossBattle.active = false
+    this.clearBossBlocks()
+    this.clearBossBattleUI()
+
+    if (this.bossBattle.boss && this.bossBattle.boss.active) {
+      this.bossBattle.boss.destroy()
+    }
+
+    // Switch back to regular music
+    if (this.backgroundMusic && this.backgroundMusic.isPlaying) {
+      this.backgroundMusic.stop()
+    }
+
+    this.backgroundMusic = this.sound.add('tom_jerry_80s_retro_theme', {
+      volume: audioConfig.musicVolume.value,
+      loop: true
+    })
+    this.backgroundMusic.play()
+
+    console.log('👹 Boss battle ended')
   }
 
 
