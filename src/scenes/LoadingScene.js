@@ -16,7 +16,10 @@ export class LoadingScene extends Phaser.Scene {
     this.setupLoadingProgressUI(this)
     
     // Setup resource loading event listeners
-    this.load.on('progress', this.updateProgressBar, this)
+    this.load.on('progress', (v) => {
+      this.actualProgress = v
+      // Do not update UI directly here; a smoother loop will lerp displayProgress
+    })
     this.load.on('complete', this.onRealLoadComplete, this)
     
     // Ensure loading progress starts displaying from 0
@@ -30,7 +33,7 @@ export class LoadingScene extends Phaser.Scene {
 
   create() {
     // Progress UI is already created in setupLoadingProgressUI
-    // Start smooth progress animation
+    // Start smooth progress animation towards actual progress
     this.startProgressAnimation()
   }
 
@@ -290,18 +293,27 @@ export class LoadingScene extends Phaser.Scene {
 
   // Start smooth progress animation
   startProgressAnimation() {
-    // Create smooth progress animation
-    this.progressTween = this.tweens.add({
-      targets: this,
-      displayProgress: 1,
-      duration: 3000, // 3 second loading animation, ensure user can see complete process
-      ease: 'Power2.easeOut',
-      onUpdate: () => {
+    // Smoothly approach actualProgress every frame via timer
+    this.progressSmoothEvent = this.time.addEvent({
+      delay: 50,
+      loop: true,
+      callback: () => {
+        // Ease displayProgress toward actualProgress
+        const target = Math.min(1, this.actualProgress || 0)
+        this.displayProgress = this.displayProgress || 0
+        this.displayProgress += (target - this.displayProgress) * 0.2
+        
+        // Snap when very close to reduce jitter
+        if (Math.abs(target - this.displayProgress) < 0.005) {
+          this.displayProgress = target
+        }
+        
         this.updateProgressBar(this.displayProgress)
-      },
-      onComplete: () => {
-        // Only execute completion logic when real loading is also complete
-        if (this.loadingComplete) {
+        
+        // Complete when both display and actual are at 1 and real loading complete
+        if (this.loadingComplete && target >= 1 && this.displayProgress >= 1) {
+          this.progressSmoothEvent.remove()
+          this.progressSmoothEvent = null
           this.loadComplete()
         }
       }
@@ -370,11 +382,27 @@ export class LoadingScene extends Phaser.Scene {
       // Force LINEAR filtering on ALL loaded textures to reduce pixelation from large assets
       this.applyLinearFilteringToAllTextures()
       
-      // Switch to title scene after 1.5 seconds
-      this.time.delayedCall(1500, () => {
+      // Switch to title scene after 0.8 seconds for snappier UX
+      this.time.delayedCall(800, () => {
         this.scene.start('TitleScene')
       })
     })
+  }
+
+  shutdown() {
+    // Cleanup timers/tweens to avoid leaks across scene transitions
+    if (this.progressSmoothEvent) {
+      this.progressSmoothEvent.remove()
+      this.progressSmoothEvent = null
+    }
+    if (this.tipTimer) {
+      this.tipTimer.remove()
+      this.tipTimer = null
+    }
+    if (this.jerryBounceAnimation) {
+      this.jerryBounceAnimation.stop()
+      this.jerryBounceAnimation = null
+    }
   }
 
   applyLinearFilteringToAllTextures() {

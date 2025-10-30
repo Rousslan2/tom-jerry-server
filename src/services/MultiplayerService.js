@@ -14,6 +14,7 @@ class MultiplayerService {
     
     // Event callbacks
     this.onConnected = null
+    this.onDisconnected = null
     this.onRoomCreated = null
     this.onRoomJoined = null
     this.onOpponentJoined = null
@@ -59,7 +60,8 @@ class MultiplayerService {
           transports: ['websocket', 'polling'],
           reconnection: true,
           reconnectionDelay: 1000,
-          reconnectionAttempts: 3,
+          reconnectionDelayMax: 5000,
+          reconnectionAttempts: 8,
           timeout: 5000
         })
         
@@ -278,6 +280,36 @@ class MultiplayerService {
   setupEventListeners() {
     if (!this.socket) return
     
+    // Disconnected
+    this.socket.on('disconnect', (reason) => {
+      console.warn('🔌 Disconnected from server:', reason)
+      this.connected = false
+      if (this.onDisconnected) {
+        this.onDisconnected(reason)
+      }
+    })
+
+    // Reconnected
+    this.socket.on('reconnect', (attempt) => {
+      console.log('🔁 Reconnected to server. Attempt:', attempt)
+      this.connected = true
+    })
+
+    // Reconnect attempt
+    this.socket.on('reconnect_attempt', (attempt) => {
+      console.log('🔄 Reconnect attempt:', attempt)
+    })
+
+    // Reconnect error
+    this.socket.on('reconnect_error', (err) => {
+      console.warn('⚠️ Reconnect error:', err?.message || err)
+    })
+
+    // Reconnect failed
+    this.socket.on('reconnect_failed', () => {
+      console.error('❌ Reconnect failed after maximum attempts')
+    })
+
     // Room created successfully
     this.socket.on('roomCreated', (data) => {
       console.log('🎮 Room created:', data.roomCode)

@@ -194,6 +194,18 @@ export class GameScene extends Phaser.Scene {
     // Setup multiplayer if in online mode
     if (this.gameMode === 'online') {
       this.setupMultiplayerSync()
+      // Handle network disconnects gracefully
+      multiplayerService.onDisconnected = (reason) => {
+        if (!this.gameOver && !this.levelComplete) {
+          // Pause gameplay feedback, inform user, and return to lobby
+          this.scene.pause()
+          this.showOpponentLeftNotification()
+          this.time.delayedCall(1500, () => {
+            this.scene.stop('GameScene')
+            this.scene.start('OnlineLobbyScene')
+          })
+        }
+      }
     }
     
     // ⏱️ Start timer for Time Attack mode
@@ -3601,6 +3613,12 @@ export class GameScene extends Phaser.Scene {
     if (this.noMovesTimer) {
       this.noMovesTimer.remove()
       this.noMovesTimer = null
+    }
+    
+    // 🔍 Stop periodic match checker
+    if (this.periodicMatchTimer) {
+      this.periodicMatchTimer.remove()
+      this.periodicMatchTimer = null
     }
     
     // Stop game music when leaving this scene

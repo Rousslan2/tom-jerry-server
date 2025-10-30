@@ -27,6 +27,7 @@ export class TitleScene extends Phaser.Scene {
     // Show mobile indicator if on mobile
     if (this.isMobile) {
       this.showMobileIndicator()
+      this.setupMobileFullscreenPrompt()
     }
   }
 
@@ -288,7 +289,7 @@ export class TitleScene extends Phaser.Scene {
     this.startButton.on('pointerup', () => {
       this.startButton.setScale(0.45)
       this.startButtonText.setScale(1.1)
-      this.startGame()
+      this.tryEnterFullscreenThenStart()
     })
   }
 
@@ -298,12 +299,65 @@ export class TitleScene extends Phaser.Scene {
     this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE)
     
     this.enterKey.on('down', () => {
-      this.startGame()
+      this.tryEnterFullscreenThenStart()
     })
     
     this.spaceKey.on('down', () => {
-      this.startGame()
+      this.tryEnterFullscreenThenStart()
     })
+  }
+
+  // Prompt and handle fullscreen on mobile (must be user-gesture)
+  setupMobileFullscreenPrompt() {
+    const screenWidth = this.cameras.main.width
+    const screenHeight = this.cameras.main.height
+    
+    // If already fullscreen-capable and mobile, show a small hint button
+    this.fullscreenBtn = this.add.text(screenWidth - 20, screenHeight - 20, '⛶', {
+      fontSize: `${window.getResponsiveFontSize(22)}px`,
+      fontFamily: window.getGameFont(),
+      color: '#FFFFFF',
+      stroke: '#000000',
+      strokeThickness: 4
+    }).setOrigin(1,1).setDepth(2000).setInteractive({ useHandCursor: true })
+    
+    this.fullscreenBtn.on('pointerup', async () => {
+      await this.requestFullscreenSafe()
+    })
+  }
+
+  async tryEnterFullscreenThenStart() {
+    try {
+      if (this.isMobile) {
+        await this.requestFullscreenSafe()
+      }
+    } catch (e) {
+      // Ignore failures (user denied or not available)
+    }
+    this.startGame()
+  }
+
+  async requestFullscreenSafe() {
+    const canvas = this.game.canvas
+    if (!canvas) return
+    
+    const doc = document
+    const isFs = doc.fullscreenElement || doc.webkitFullscreenElement || doc.msFullscreenElement
+    if (isFs) return
+    
+    const el = doc.documentElement
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen
+    if (req) {
+      try {
+        await req.call(el, { navigationUI: 'hide' })
+      } catch (e) {
+        // Some browsers need fallback on the canvas element
+        const reqCanvas = canvas.requestFullscreen || canvas.webkitRequestFullscreen || canvas.msRequestFullscreen
+        if (reqCanvas) {
+          try { await reqCanvas.call(canvas) } catch (_) { /* noop */ }
+        }
+      }
+    }
   }
 
   playBackgroundMusic() {
