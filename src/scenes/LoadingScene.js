@@ -1,7 +1,6 @@
 import Phaser from 'phaser'
 import { screenSize } from '../gameConfig.json'
 import { SettingsScene } from './SettingsScene.js'
-import { AssetManager } from '../utils/AssetManager.js'
 
 export class LoadingScene extends Phaser.Scene {
   constructor() {
@@ -12,27 +11,21 @@ export class LoadingScene extends Phaser.Scene {
   preload() {
     // Load saved settings from localStorage
     SettingsScene.loadSettings()
-
-    // Initialize Asset Manager for optimized loading
-    this.assetManager = new AssetManager(this)
-
+    
     // Setup loading progress UI
     this.setupLoadingProgressUI(this)
-
+    
     // Setup resource loading event listeners
     this.load.on('progress', this.updateProgressBar, this)
     this.load.on('complete', this.onRealLoadComplete, this)
-
+    
     // Ensure loading progress starts displaying from 0
     this.actualProgress = 0
     this.displayProgress = 0
     this.loadingComplete = false
-
-    // Load asset pack by type with optimization
+    
+    // Load asset pack by type
     this.load.pack('assetPack', 'assets/asset-pack.json')
-
-    // Précharger des assets stratégiques
-    this.assetManager.preloadStrategicAssets()
   }
 
   create() {
@@ -386,7 +379,7 @@ export class LoadingScene extends Phaser.Scene {
 
   applyLinearFilteringToAllTextures() {
     let textureCount = 0
-
+    
     // Iterate through all loaded textures
     this.textures.each((texture) => {
       if (texture.key && texture.key !== '__DEFAULT' && texture.key !== '__MISSING') {
@@ -394,7 +387,7 @@ export class LoadingScene extends Phaser.Scene {
         if (texture.source && texture.source[0]) {
           texture.source[0].setFilter(1) // 1 = Phaser.Textures.FilterMode.LINEAR
           textureCount++
-
+          
           // Also set scaleMode for WebGL rendering
           if (texture.source[0].scaleMode !== undefined) {
             texture.source[0].scaleMode = 1 // LINEAR
@@ -402,13 +395,8 @@ export class LoadingScene extends Phaser.Scene {
         }
       }
     })
-
+    
     console.log(`✅ Applied LINEAR filtering to ${textureCount} textures for smooth scaling`)
-
-    // Utiliser l'AssetManager pour les optimisations supplémentaires
-    if (this.assetManager) {
-      this.assetManager.postLoadOptimization()
-    }
   }
 
 }

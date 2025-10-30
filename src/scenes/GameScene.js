@@ -2,67 +2,157 @@ import Phaser from 'phaser'
 import { screenSize, gameConfig, levelConfig, audioConfig } from '../gameConfig.json'
 import { multiplayerService } from '../services/MultiplayerService.js'
 import { MobileEnhancements } from '../utils/MobileEnhancements.js'
-import { Accessibility } from '../utils/Accessibility.js'
-import { ErrorHandler } from '../utils/ErrorHandler.js'
-import { GameLogic } from './GameLogic.js'
-import { GameUI } from './GameUI.js'
-import { GameEvents } from './GameEvents.js'
-import { GameEffects } from './GameEffects.js'
-import { GameAudio } from './GameAudio.js'
-import { GAME_CONSTANTS } from './Constants.js'
-import { PowerUps } from './PowerUps.js'
-import { Achievements } from './Achievements.js'
-import { AssetManager } from '../utils/AssetManager.js'
-import { UIManager } from './UIManager.js'
 
 export class GameScene extends Phaser.Scene {
   constructor() {
     super({ key: 'GameScene' })
+    this.initializeGameState()
+  }
 
-    // Initialize modules
-    this.logic = new GameLogic(this)
-    this.ui = new GameUI(this)
-    this.eventsManager = new GameEvents(this)
-    this.effects = new GameEffects(this)
-    this.audio = new GameAudio(this)
+  // Initialize or reset game state
+  initializeGameState() {
+    // Game mode
+    this.gameMode = 'single' // 'single' or 'online'
+    this.isHost = false
+    
+    // 🎮 NEW: Game mode type (classic, time_attack, endless, zen)
+    this.selectedGameMode = 'classic'
+    
+    // 🎯 NOTE: Random targets will be generated AFTER gameMode is set in init()
+    
+    // Game state
+    this.gameOver = false
+    this.levelComplete = false
+    this.currentMoves = 0
+    
+    // ⏱️ NEW: Timer for Time Attack mode
+    this.gameTimer = null
+    this.timeRemaining = 120 // 2 minutes in seconds
+    
+    // Grid system
+    this.gridData = []
+    this.gridSlots = []
+    
+    // Drag system
+    this.selectedItem = null
+    this.isDragging = false
+    
+    // ⭐ NEW: Score & Combo System
+    this.score = 0
+    this.combo = 0
+    this.comboTimer = null
+    this.comboResetDelay = 2000 // Reset combo after 2 seconds of no elimination
+    this.lastEliminationTime = 0
+    
+    // Opponent stats (for online mode)
+    this.opponentStats = {
+      'milk_box': 0,
+      'chips_bag': 0,
+      'cola_bottle': 0
+    }
+    
+    // Item type mapping - BEAUCOUP PLUS D'ITEMS ! 🎨
+    this.itemTypes = [
+      // Original items
+      'milk_box',
+      'chips_bag', 
+      'cola_bottle',
+      'cookie_box',
+      'detergent_bottle',
+      'tissue_pack',
+      'toothpaste',
+      'bread',
+      'towel',
+      // NEW: More variety! 🌟
+      'yogurt_cups',
+      'energy_drinks',
+      'coffee_cans',
+      'soap_dispensers',
+      'instant_noodles',
+      'shampoo_bottles',
+      'juice_bottles',
+      'candy_jars'
+    ]
+    
+    // Target tracking
+    this.eliminatedCounts = {
+      'milk_box': 0,
+      'chips_bag': 0,
+      'cola_bottle': 0,
+      'cookie_box': 0,
+      'detergent_bottle': 0,
+      'tissue_pack': 0,
+      'toothpaste': 0,
+      'bread': 0,
+      'towel': 0,
+      'yogurt_cups': 0,
+      'energy_drinks': 0,
+      'coffee_cans': 0,
+      'soap_dispensers': 0,
+      'instant_noodles': 0,
+      'shampoo_bottles': 0,
+      'juice_bottles': 0,
+      'candy_jars': 0
+    }
+  }
 
-    // Bind methods to access scene properties
-    this.eliminateItems = this.logic.eliminateItems.bind(this.logic)
-    this.addItemToSlot = this.logic.addItemToSlot.bind(this.logic)
-    this.resyncGridCell = this.logic.resyncGridCell.bind(this.logic)
-    this.applyTomJerryItemEnhancement = this.effects.applyTomJerryItemEnhancement.bind(this.effects)
-    this.applyHighQualityRendering = this.effects.applyHighQualityRendering.bind(this.effects)
+  // 🎯 Generate random level targets from available items
+  generateRandomTargets() {
+    const possibleTargets = levelConfig.possibleTargets.value
+    const targetCounts = levelConfig.targetCounts.value
+    
+    // 🌐 In online mode, synchronize targets between players!
+    let shuffled
+    if (this.gameMode === 'online' && this.isHost) {
+      // Host generates and stores targets
+      shuffled = Phaser.Utils.Array.Shuffle([...possibleTargets])
+      const targetTypes = [shuffled[0], shuffled[1], shuffled[2]]
+      localStorage.setItem('currentRoomTargets', JSON.stringify(targetTypes))
+      console.log('🎯 Host generated targets:', targetTypes)
+    } else if (this.gameMode === 'online' && !this.isHost) {
+      // Guest uses the same targets as host
+      const storedTargets = localStorage.getItem('currentRoomTargets')
+      if (storedTargets) {
+        const targetTypes = JSON.parse(storedTargets)
+        shuffled = [...targetTypes, ...possibleTargets.filter(t => !targetTypes.includes(t))]
+        console.log('🎯 Guest loaded targets:', targetTypes)
+      } else {
+        // Fallback if storage failed
+        shuffled = Phaser.Utils.Array.Shuffle([...possibleTargets])
+      }
+    } else {
+      // Single player mode - random selection
+      shuffled = Phaser.Utils.Array.Shuffle([...possibleTargets])
+    }
+    
+    this.levelTargets = [
+      { type: shuffled[0], count: targetCounts[0] },
+      { type: shuffled[1], count: targetCounts[1] },
+      { type: shuffled[2], count: targetCounts[2] }
+    ]
+    
+    console.log('🎯 Final Random Targets:', this.levelTargets)
   }
 
   // Receive scene startup parameters
   init(data) {
-    // Initialize game state through logic module
-    this.logic.initializeGameState()
-
+    // Always reinitialize game state when scene starts
+    this.initializeGameState()
+    
     // Set game mode (single/online)
     if (data && data.mode) {
-      this.logic.gameMode = data.mode
-      this.logic.isHost = data.isHost || false
+      this.gameMode = data.mode
+      this.isHost = data.isHost || false
     }
-
-    // Set game mode type (classic/time_attack/endless/zen)
+    
+    // 🎮 NEW: Set game mode type (classic/time_attack/endless/zen)
     if (data && data.gameMode) {
-      this.logic.selectedGameMode = data.gameMode
-      console.log('🎮 Game Mode:', this.logic.selectedGameMode)
+      this.selectedGameMode = data.gameMode
+      console.log('🎮 Game Mode:', this.selectedGameMode)
     }
-
-    // Generate random targets
-    this.logic.generateRandomTargets()
-
-    // Copy properties for backward compatibility
-    this.gameMode = this.logic.gameMode
-    this.isHost = this.logic.isHost
-    this.selectedGameMode = this.logic.selectedGameMode
-    this.levelTargets = this.logic.levelTargets
-    this.eliminatedCounts = this.logic.eliminatedCounts
-    this.itemTypes = this.logic.itemTypes
-    this.gridData = this.logic.gridData
-    this.gridSlots = this.logic.gridSlots
+    
+    // 🎯 NOW generate random targets AFTER gameMode is set!
+    this.generateRandomTargets()
   }
 
   preload() {
@@ -71,66 +161,54 @@ export class GameScene extends Phaser.Scene {
 
   create() {
     // 🎵 Stop ALL other scene music to prevent overlap!
-    this.audio.stopAllOtherMusic()
-
+    this.stopAllOtherMusic()
+    
+    // Stop title scene music if playing
+    const titleScene = this.scene.get('TitleScene')
+    if (titleScene && titleScene.backgroundMusic && titleScene.backgroundMusic.isPlaying) {
+      titleScene.backgroundMusic.stop()
+    }
+    
     // 📱 Initialize Mobile Enhancements
     this.mobileHelper = new MobileEnhancements(this)
     this.isMobile = this.mobileHelper.isMobile
-
-    // ♿ Initialize Accessibility
-    this.accessibility = new Accessibility(this)
-
-    // 🚨 Initialize Error Handler
-    this.errorHandler = new ErrorHandler(this)
-
-    // 🎯 Initialize Power-ups
-    this.powerUps = new PowerUps(this)
-
-    // 🏆 Initialize Achievements
-    this.achievements = new Achievements(this)
-
-    // 📦 Initialize Asset Manager
-    this.assetManager = new AssetManager(this)
-
-    // 🎨 Initialize UI Manager
-    this.uiManager = new UIManager(this)
-
+    
     // Show mobile tutorial on first launch
     if (this.isMobile) {
-      this.time.delayedCall(GAME_CONSTANTS.MOBILE_TUTORIAL_DELAY, () => {
+      this.time.delayedCall(500, () => {
         this.mobileHelper.showMobileTutorial()
       })
       console.log('📱 Mobile mode activated - Touch controls enhanced')
     }
-
+    
     this.createBackground()
     this.createShelf()
-    this.logic.initializeGrid()
-    this.ui.createUI()
+    this.initializeGrid()
+    this.createUI()
     this.setupInputs()
-    this.audio.playBackgroundMusic()
-
+    this.playBackgroundMusic()
+    
     // Initialize shelf items
     this.populateInitialItems()
-
+    
     // Setup multiplayer if in online mode
     if (this.gameMode === 'online') {
       this.setupMultiplayerSync()
     }
-
+    
     // ⏱️ Start timer for Time Attack mode
-    if (this.logic.selectedGameMode === GAME_CONSTANTS.GAME_MODE_TIME_ATTACK) {
-      this.logic.startGameTimer()
+    if (this.selectedGameMode === 'time_attack') {
+      this.startGameTimer()
     }
-
+    
     // 🎬 Start obstacle spawn timer - spawn Tom & Jerry obstacles regularly
-    this.eventsManager.startObstacleSpawnTimer()
-
+    this.startObstacleSpawnTimer()
+    
     // 🎪 Start Tom random event timer - Tom causes chaos!
-    this.eventsManager.startTomEventTimer()
-
+    this.startTomEventTimer()
+    
     // 🔍 Start periodic match checker - detect missed matches every 3 seconds
-    this.eventsManager.startPeriodicMatchChecker()
+    this.startPeriodicMatchChecker()
   }
 
   createBackground() {
@@ -820,7 +898,7 @@ export class GameScene extends Phaser.Scene {
     this.pauseButtonBg.on('pointerup', () => {
       this.pauseButtonText.setScale(1.1)
       this.pauseButtonText.setTint(0xFFFF88)
-      this.audio.playSound('ui_click')
+      this.sound.play('ui_click', { volume: audioConfig.sfxVolume.value })
       this.scene.pause()
       this.scene.launch('PauseScene')
     })
@@ -902,26 +980,26 @@ export class GameScene extends Phaser.Scene {
     // Setup pause key (ESC or P)
     this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC)
     this.pKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.P)
-
+    
     this.escKey.on('down', () => {
       this.pauseGame()
     })
-
+    
     this.pKey.on('down', () => {
       this.pauseGame()
     })
-
+    
     // Setup drag input
     this.input.on('dragstart', (pointer, gameObject) => {
-      this.logic.selectedItem = gameObject
-      this.logic.isDragging = true
-
+      this.selectedItem = gameObject
+      this.isDragging = true
+      
       // Kill any existing tweens on this object to prevent accumulation
       this.tweens.killTweensOf(gameObject)
-
+      
       // Reset to normal scale before starting animation
       gameObject.setScale(0.075)
-
+      
       // Cartoon-style pickup animation
       this.tweens.add({
         targets: gameObject,
@@ -931,55 +1009,89 @@ export class GameScene extends Phaser.Scene {
         ease: 'Back.easeOut',
         yoyo: true,
         onComplete: () => {
-          gameObject.setScale(0.090)
+          gameObject.setScale(0.090)  // Keep slightly larger state when dragging
         }
       })
-
+      
       gameObject.setDepth(1000)
-      gameObject.setAlpha(1.0)
-
-      // Create drag effects
-      this.effects.createDragEffects(gameObject)
-
+      gameObject.setAlpha(1.0)  // Completely opaque when dragging
+      
+      // Add cute rainbow glow effect
+      gameObject.setTint(0xFFB6C1)  // Light pink glow effect
+      
+      // Create cute multi-layer halo effect
+      this.dragRing = this.add.graphics()
+      
+      // Outer halo - pink
+      this.dragRing.lineStyle(4, 0xFF69B4, 0.6)
+      this.dragRing.strokeCircle(gameObject.x, gameObject.y, 30 * 0.95)  // Halo size reduced to 95%
+      
+      // Middle halo - purple  
+      this.dragRing.lineStyle(3, 0xDA70D6, 0.7)
+      this.dragRing.strokeCircle(gameObject.x, gameObject.y, 22 * 0.95)  // Halo size reduced to 95%
+      
+      // Inner halo - white
+      this.dragRing.lineStyle(2, 0xFFFFFF, 0.8)
+      this.dragRing.strokeCircle(gameObject.x, gameObject.y, 15 * 0.95)  // Halo size reduced to 95%
+      
+      this.dragRing.setDepth(999)
+      
+      // Cute halo pulse animation
+      this.tweens.add({
+        targets: this.dragRing,
+        scaleX: 1.3,
+        scaleY: 1.3,
+        alpha: 0.4,
+        rotation: Math.PI * 2,  // Rotation effect
+        duration: 800,
+        ease: 'Sine.easeInOut',
+        repeat: -1,
+        yoyo: true
+      })
+      
       this.sound.play('item_pickup', { volume: audioConfig.sfxVolume.value })
     })
-
+    
     this.input.on('drag', (pointer, gameObject, dragX, dragY) => {
       gameObject.x = dragX
       gameObject.y = dragY
-
+      
       // Update halo position
       if (this.dragRing) {
         this.dragRing.x = dragX
         this.dragRing.y = dragY
       }
-
+      
       // Highlight available slots
-      this.effects.highlightAvailableSlots()
+      this.highlightAvailableSlots()
     })
-
+    
     this.input.on('dragend', (pointer, gameObject) => {
       // Clear drag effects
-      this.effects.clearDragEffects()
-
+      if (this.dragRing) {
+        this.tweens.killTweensOf(this.dragRing)
+        this.dragRing.destroy()
+        this.dragRing = null
+      }
+      
       this.handleItemDrop(gameObject, pointer)
-      this.logic.selectedItem = null
-      this.logic.isDragging = false
-
+      this.selectedItem = null
+      this.isDragging = false
+      
       // Clear slot highlights
-      this.effects.clearSlotHighlights()
+      this.clearSlotHighlights()
     })
   }
 
   populateInitialItems() {
     const rows = gameConfig.gridRows.value
     const cols = gameConfig.gridCols.value
-    const totalPositions = rows * cols * 3
-
+    const totalPositions = rows * cols * 3 // Total positions (5x6x3 = 90)
+    
     // Leave much more space - fill only 60-70% of positions for better gameplay
     const fillPercentage = Phaser.Math.Between(60, 70) / 100
     const filledPositions = Math.floor(totalPositions * fillPercentage)
-
+    
     // Create array of all positions
     const allPositions = []
     for (let row = 0; row < rows; row++) {
@@ -989,39 +1101,40 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
-
+    
     // Randomly shuffle position array
     Phaser.Utils.Array.Shuffle(allPositions)
-
+    
     // 🎯 Get current level target types from random targets!
     const targetTypes = this.levelTargets.map(t => t.type)
-
+    
     // 🎲 GUARANTEE AT LEAST ONE MATCH-3 COMBO!
     // Place first 3 items of the same type close to each other
     let guaranteedItemType = targetTypes[Phaser.Math.Between(0, targetTypes.length - 1)]
-
+    
     for (let i = 0; i < Math.min(3, allPositions.length); i++) {
       const pos = allPositions[i]
-      this.logic.addItemToSlot(pos.row, pos.col, guaranteedItemType, pos.position)
+      this.addItemToSlot(pos.row, pos.col, guaranteedItemType, pos.position)
     }
-
+    
     // Fill remaining positions
     for (let i = 3; i < filledPositions; i++) {
       const pos = allPositions[i]
       let itemType
-
+      
       // 🎯 HARDER: First 20 items have 50% chance to be target items
+      // Reduced from 65% to make it more challenging!
       if (i < 20 && Math.random() < gameConfig.targetItemSpawnChanceStart.value / 100) {
         itemType = targetTypes[Phaser.Math.Between(0, targetTypes.length - 1)]
       } else {
-        itemType = this.logic.getRandomItemType()
+        itemType = this.getRandomItemType()
       }
-
-      this.logic.addItemToSlot(pos.row, pos.col, itemType, pos.position)
+      
+      this.addItemToSlot(pos.row, pos.col, itemType, pos.position)
     }
-
+    
     // 🔍 Start the no-moves detection system
-    this.eventsManager.startNoMovesDetection()
+    this.startNoMovesDetection()
   }
 
   getRandomItemType() {
@@ -1291,7 +1404,7 @@ export class GameScene extends Phaser.Scene {
     })
     
     // Play whoosh sound
-    this.audio.playSound('whoosh_fast')
+    this.sound.play('whoosh_fast', { volume: audioConfig.sfxVolume.value })
     
     // Tom chases 400ms later
     this.time.delayedCall(400, () => {
@@ -1311,7 +1424,7 @@ export class GameScene extends Phaser.Scene {
       })
       
       // Play running sound and Tom's laugh
-      this.audio.playSound('tom_running_footsteps', audioConfig.sfxVolume.value * 0.7)
+      this.sound.play('tom_running_footsteps', { volume: audioConfig.sfxVolume.value * 0.7 })
       
       // Add dust clouds behind them
       this.createDustTrail(yPosition)
@@ -1365,7 +1478,7 @@ export class GameScene extends Phaser.Scene {
     
     // Tom evil laugh
     this.time.delayedCall(500, () => {
-      this.audio.playSound('tom_evil_laugh')
+      this.sound.play('tom_evil_laugh', { volume: audioConfig.sfxVolume.value })
     })
     
     // Tom trips and falls after 1.5 seconds
@@ -1386,7 +1499,7 @@ export class GameScene extends Phaser.Scene {
       
       // Play crash sound
       this.time.delayedCall(800, () => {
-        this.audio.playSound('tom_crash_fall')
+        this.sound.play('tom_crash_fall', { volume: audioConfig.sfxVolume.value })
       })
       
       // Drop 2-3 obstacles while falling
@@ -1495,7 +1608,7 @@ export class GameScene extends Phaser.Scene {
       this.cameras.main.shake(2000, 0.01)
       
       // Play rumble sound
-      this.audio.playSound('screen_shake_rumble')
+      this.sound.play('screen_shake_rumble', { volume: audioConfig.sfxVolume.value })
       
       // All items vibrate!
       this.gridSlots.forEach((row, rowIndex) => {
@@ -1680,7 +1793,7 @@ export class GameScene extends Phaser.Scene {
     this.showHelpMessage("✨ TOM HELPED YOU! ✨")
     
     // Play helpful sound
-    this.audio.playSound('item_pickup')
+    this.sound.play('item_pickup', { volume: audioConfig.sfxVolume.value })
   }
   
   // 💬 Show helpful message to player
@@ -1730,7 +1843,7 @@ export class GameScene extends Phaser.Scene {
   // 🎬 Create impact effect when obstacle lands
   createObstacleImpactEffect(x, y) {
     // Play impact sound
-    this.audio.playSound('item_drop', audioConfig.sfxVolume.value * 1.2)
+    this.sound.play('item_drop', { volume: audioConfig.sfxVolume.value * 1.2 })
     
     // Dust cloud rings
     const rings = []
@@ -1783,23 +1896,23 @@ export class GameScene extends Phaser.Scene {
   }
 
   handleItemDrop(item, pointer) {
-    const dropResult = this.logic.getSlotAndPositionAtLocation(pointer.x, pointer.y)
-
+    const dropResult = this.getSlotAndPositionAtLocation(pointer.x, pointer.y)
+    
     if (dropResult) {
-      // 🎯 Auto-find empty position in the target slot!
+      // 🎯 NEW: Auto-find empty position in the target slot!
       let targetPosition = dropResult.position
       const gridCell = this.gridData[dropResult.row][dropResult.col]
-
+      
       // If the exact position is occupied, find the first empty position automatically
       if (gridCell.positions[targetPosition] !== null) {
         const emptyPosition = gridCell.positions.findIndex(pos => pos === null)
-
+        
         if (emptyPosition !== -1) {
           targetPosition = emptyPosition
           console.log(`🎯 Auto-placed in empty position ${targetPosition} instead of occupied position ${dropResult.position}`)
         } else {
           // No empty positions at all - reject placement
-          this.logic.returnItemToOriginalPosition(item)
+          this.returnItemToOriginalPosition(item)
           this.tweens.killTweensOf(item)
           this.tweens.add({
             targets: item,
@@ -1816,14 +1929,14 @@ export class GameScene extends Phaser.Scene {
           return
         }
       }
-
-      // Move item to new position
-      this.logic.moveItemToPosition(item, dropResult.row, dropResult.col, targetPosition)
-      this.audio.playSound('item_pickup')
-
+      
+      // Move item to new position (either original or auto-found empty position)
+      this.moveItemToPosition(item, dropResult.row, dropResult.col, targetPosition)
+      this.sound.play('item_pickup', { volume: audioConfig.sfxVolume.value })
+      
       // Kill any existing tweens to prevent accumulation
       this.tweens.killTweensOf(item)
-
+      
       // Successful placement bounce feedback animation
       this.tweens.add({
         targets: item,
@@ -1836,35 +1949,32 @@ export class GameScene extends Phaser.Scene {
           item.setScale(0.075)
         }
       })
-
+      
       // Increase move counter
-      this.logic.currentMoves++
-      this.ui.updateMoveCounter()
-
-      // 🔍 Check ALL cells for matches after placement
+      this.currentMoves++
+      this.updateMoveCounter()
+      
+      // 🔍 CRITICAL: Check ALL cells for matches after placement
       this.time.delayedCall(100, () => {
-        this.logic.checkAllCellsForMatches()
+        this.checkAllCellsForMatches()
       })
-
-      // 🔄 Check for deadlock ONLY every 5 moves
-      if (this.logic.currentMoves % 5 === 0) {
+      
+      // 🔄 Check for deadlock ONLY every 5 moves (not every move!)
+      if (this.currentMoves % 5 === 0) {
         this.time.delayedCall(500, () => {
-          this.logic.checkForDeadlock()
+          this.checkForDeadlock()
         })
       }
-
+      
       // Check game end conditions
-      const gameEndResult = this.logic.checkGameEnd()
-      if (gameEndResult) {
-        this.handleGameEnd(gameEndResult)
-      }
+      this.checkGameEnd()
     } else {
       // Return to original position - add shake animation to indicate cannot place
-      this.logic.returnItemToOriginalPosition(item)
-
+      this.returnItemToOriginalPosition(item)
+      
       // Kill any existing tweens to prevent accumulation
       this.tweens.killTweensOf(item)
-
+      
       // Shake animation
       this.tweens.add({
         targets: item,
@@ -1875,14 +1985,14 @@ export class GameScene extends Phaser.Scene {
         repeat: 2
       })
     }
-
+    
     // Kill any existing tweens before resetting
     this.tweens.killTweensOf(item)
-
+    
     // Reset item style
     item.setScale(0.075)
     item.setDepth(100 + (item.positionIndex || 0))
-    item.clearTint()
+    item.clearTint()  // Clear glow effect
   }
 
   // Get slot and specific position corresponding to mouse position
@@ -2189,7 +2299,20 @@ export class GameScene extends Phaser.Scene {
     this.updateScoreDisplay()
     
     // ⭐ Play appropriate sound based on combo level - NEW SOUNDS! 🎵
-    this.audio.playComboSound(this.combo)
+    if (this.combo >= 5) {
+      this.sound.play('combo_mega', { volume: audioConfig.sfxVolume.value })
+    } else if (this.combo >= 3) {
+      this.sound.play('combo_x3', { volume: audioConfig.sfxVolume.value })
+    } else if (this.combo >= 2) {
+      this.sound.play('combo_x2', { volume: audioConfig.sfxVolume.value })
+    } else {
+      this.sound.play('match_eliminate', { volume: audioConfig.sfxVolume.value })
+    }
+    
+    // Also play score gain sound for extra satisfaction! 💰
+    this.time.delayedCall(150, () => {
+      this.sound.play('score_gain', { volume: audioConfig.sfxVolume.value * 0.5 })
+    })
     
     // Update elimination count
     const amountToAdd = gameConfig.maxItemsPerSlot.value
@@ -2343,7 +2466,7 @@ export class GameScene extends Phaser.Scene {
     })
     
     // Play unlock sound
-    this.audio.playSound('item_drop')
+    this.sound.play('item_drop', { volume: audioConfig.sfxVolume.value })
   }
 
   createCartoonEliminationEffect(x, y, itemType, earnedPoints) {
@@ -2621,14 +2744,14 @@ export class GameScene extends Phaser.Scene {
         
         // Award win to remaining player
         this.time.delayedCall(2000, () => {
-          if (!this.logic.gameOver && !this.logic.levelComplete) {
-            this.logic.levelComplete = true
-            this.audio.playGameEndSound(true)
-            this.scene.launch('VictoryScene', {
-              score: this.logic.score,
-              moves: this.logic.currentMoves,
+          if (!this.gameOver && !this.levelComplete) {
+            this.levelComplete = true
+            this.sound.play('level_complete', { volume: audioConfig.sfxVolume.value })
+            this.scene.launch('VictoryScene', { 
+              score: this.score,
+              moves: this.currentMoves,
               maxMoves: levelConfig.maxMoves.value,
-              mode: this.logic.gameMode,
+              mode: this.gameMode,
               reason: 'Opponent Disconnected!'
             })
           }
@@ -2663,26 +2786,26 @@ export class GameScene extends Phaser.Scene {
         console.log('🏁 Opponent game ended:', actionData.result)
         
         // If opponent won, I lost!
-        if (actionData.result === 'win' && !this.logic.gameOver && !this.logic.levelComplete) {
-          this.logic.gameOver = true
-          this.audio.playGameEndSound(false)
+        if (actionData.result === 'win' && !this.gameOver && !this.levelComplete) {
+          this.gameOver = true
+          this.sound.play('game_over', { volume: audioConfig.sfxVolume.value })
           this.scene.launch('GameOverScene', {
-            score: this.logic.score,
-            moves: this.logic.currentMoves,
-            mode: this.logic.gameMode,  // 🎮 Pass 'online' for stats tracking
+            score: this.score,
+            moves: this.currentMoves,
+            mode: this.gameMode,  // 🎮 Pass 'online' for stats tracking
             reason: 'Opponent Won!'
           })
         }
-
+        
         // If opponent lost, I won!
-        if (actionData.result === 'lose' && !this.logic.gameOver && !this.logic.levelComplete) {
-          this.logic.levelComplete = true
-          this.audio.playGameEndSound(true)
-          this.scene.launch('VictoryScene', {
-            score: this.logic.score,
-            moves: this.logic.currentMoves,
+        if (actionData.result === 'lose' && !this.gameOver && !this.levelComplete) {
+          this.levelComplete = true
+          this.sound.play('level_complete', { volume: audioConfig.sfxVolume.value })
+          this.scene.launch('VictoryScene', { 
+            score: this.score,
+            moves: this.currentMoves,
             maxMoves: levelConfig.maxMoves.value,
-            mode: this.logic.gameMode,  // 🎮 Pass 'online' for stats tracking
+            mode: this.gameMode,  // 🎮 Pass 'online' for stats tracking
             reason: 'Opponent Lost!'
           })
         }
@@ -2881,63 +3004,482 @@ export class GameScene extends Phaser.Scene {
     })
   }
 
-
-  handleGameEnd(result) {
-    if (result.type === 'victory') {
-      this.logic.levelComplete = true
-      this.audio.playGameEndSound(true)
-
-      // Stop timer for Time Attack mode
-      if (this.logic.selectedGameMode === 'time_attack' && this.logic.gameTimer) {
-        this.logic.gameTimer.remove()
+  // 🔄 Check if game is in a deadlock (no possible matches)
+  checkForDeadlock() {
+    if (this.gameOver || this.levelComplete) return
+    
+    // Count total empty slots and items
+    const stats = this.getGridStats()
+    
+    // 🎯 SMART CHECK: Only shuffle if truly stuck
+    // Don't shuffle if:
+    // 1. There are many empty slots (items can be moved around)
+    // 2. Grid is not full enough to be stuck
+    if (stats.emptySlots > stats.totalSlots * 0.3) {
+      // More than 30% empty, plenty of room to move
+      return
+    }
+    
+    const possibleMatches = this.findPossibleMatches()
+    
+    // Only shuffle if REALLY no moves (0 possible matches)
+    // AND grid is pretty full
+    if (possibleMatches === 0 && stats.emptySlots < stats.totalSlots * 0.2) {
+      console.log('⚠️ TRUE DEADLOCK! No moves possible. Shuffling...')
+      this.shuffleBoard()
+    }
+  }
+  
+  // 📊 Get grid statistics
+  getGridStats() {
+    const rows = gameConfig.gridRows.value
+    const cols = gameConfig.gridCols.value
+    let emptySlots = 0
+    let totalSlots = 0
+    
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const gridCell = this.gridData[row][col]
+        totalSlots += 3 // Each slot has 3 positions
+        
+        gridCell.positions.forEach(pos => {
+          if (pos === null) {
+            emptySlots++
+          }
+        })
       }
+    }
+    
+    return { emptySlots, totalSlots }
+  }
+  
+  // 🔍 Find how many possible matches exist (IMPROVED!)
+  findPossibleMatches() {
+    let possibleMatches = 0
+    const rows = gameConfig.gridRows.value
+    const cols = gameConfig.gridCols.value
+    
+    // Strategy 1: Check slots with 2 same items that need 1 more
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const gridCell = this.gridData[row][col]
+        
+        // Count items by type in this slot
+        const typeCounts = {}
+        gridCell.positions.forEach(itemType => {
+          if (itemType) {
+            typeCounts[itemType] = (typeCounts[itemType] || 0) + 1
+          }
+        })
+        
+        // If we have 2 of same type, check if we can complete the match
+        Object.keys(typeCounts).forEach(itemType => {
+          if (typeCounts[itemType] === 2) {
+            // Check if this item type exists ANYWHERE on the board
+            if (this.itemExistsOnBoard(itemType, row, col)) {
+              possibleMatches++
+            }
+          }
+        })
+      }
+    }
+    
+    // Strategy 2: Check slots with empty space that can receive matching items
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const gridCell = this.gridData[row][col]
+        const emptyPositions = gridCell.positions.filter(p => p === null).length
+        
+        if (emptyPositions > 0) {
+          // This slot has space, check what can be moved here
+          const availableTypes = this.getAvailableItemTypes()
+          availableTypes.forEach(itemType => {
+            const countInSlot = gridCell.positions.filter(p => p === itemType).length
+            // Can we make a match by moving items here?
+            if (countInSlot > 0 && this.itemExistsOnBoard(itemType, row, col)) {
+              possibleMatches++
+            }
+          })
+        }
+      }
+    }
+    
+    return possibleMatches
+  }
+  
+  // 🔎 Check if item type exists anywhere on board (excluding specific slot)
+  itemExistsOnBoard(itemType, excludeRow, excludeCol) {
+    const rows = gameConfig.gridRows.value
+    const cols = gameConfig.gridCols.value
+    
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        // Skip the excluded slot
+        if (row === excludeRow && col === excludeCol) continue
+        
+        const gridCell = this.gridData[row][col]
+        if (gridCell.positions.includes(itemType)) {
+          return true
+        }
+      }
+    }
+    
+    return false
+  }
+  
+  // 📦 Get all item types currently on the board
+  getAvailableItemTypes() {
+    const types = new Set()
+    const rows = gameConfig.gridRows.value
+    const cols = gameConfig.gridCols.value
+    
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const gridCell = this.gridData[row][col]
+        gridCell.positions.forEach(itemType => {
+          if (itemType) {
+            types.add(itemType)
+          }
+        })
+      }
+    }
+    
+    return Array.from(types)
+  }
+  
+  // 🔄 Shuffle all items on the board
+  shuffleBoard() {
+    // Show shuffle warning
+    const screenWidth = this.cameras.main.width
+    const screenHeight = this.cameras.main.height
+    
+    const shuffleWarning = this.add.text(screenWidth / 2, screenHeight / 2, '🔄 NO MOVES LEFT!\nSHUFFLING...', {
+      fontSize: `${window.getResponsiveFontSize(36)}px`,
+      fontFamily: window.getGameFont(),
+      color: '#FFD700',
+      stroke: '#000000',
+      strokeThickness: 6,
+      align: 'center',
+      fontStyle: 'bold'
+    }).setOrigin(0.5, 0.5).setDepth(15000).setAlpha(0)
+    
+    // Fade in warning
+    this.tweens.add({
+      targets: shuffleWarning,
+      alpha: 1,
+      duration: 300,
+      ease: 'Power2'
+    })
+    
+    // Play shuffle sound
+    this.sound.play('item_pickup', { volume: audioConfig.sfxVolume.value })
+    
+    // Collect all items from grid
+    const allItems = []
+    const rows = gameConfig.gridRows.value
+    const cols = gameConfig.gridCols.value
+    
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const gridCell = this.gridData[row][col]
+        gridCell.items.forEach(item => {
+          allItems.push({
+            type: item.itemType,
+            sprite: item
+          })
+        })
+      }
+    }
+    
+    // Shuffle items array
+    Phaser.Utils.Array.Shuffle(allItems)
+    
+    // Animate items flying to center
+    allItems.forEach((itemData, index) => {
+      this.tweens.add({
+        targets: itemData.sprite,
+        x: screenWidth / 2,
+        y: screenHeight / 2,
+        scale: 0,
+        rotation: Math.PI * 2,
+        alpha: 0.5,
+        duration: 500,
+        delay: index * 10,
+        ease: 'Back.easeIn'
+      })
+    })
+    
+    // Wait for animation, then redistribute
+    this.time.delayedCall(800, () => {
+      // Clear all grid cells
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          this.gridData[row][col].positions = [null, null, null]
+          this.gridData[row][col].items = []
+        }
+      }
+      
+      // Destroy all item sprites
+      allItems.forEach(itemData => {
+        itemData.sprite.destroy()
+      })
+      
+      // Redistribute items
+      let itemIndex = 0
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          for (let position = 0; position < 3; position++) {
+            if (itemIndex < allItems.length) {
+              this.addItemToSlot(row, col, allItems[itemIndex].type, position)
+              itemIndex++
+            }
+          }
+        }
+      }
+      
+      // Remove warning
+      this.tweens.add({
+        targets: shuffleWarning,
+        alpha: 0,
+        duration: 300,
+        ease: 'Power2',
+        onComplete: () => {
+          shuffleWarning.destroy()
+        }
+      })
+    })
+  }
 
-      // MULTIPLAYER: If someone wins, opponent loses!
-      if (this.logic.gameMode === 'online') {
+  checkGameEnd() {
+    // 🎮 Endless/Zen mode - no game over conditions except target completion
+    if (this.selectedGameMode === 'endless' || this.selectedGameMode === 'zen') {
+      // Check if targets met (optional victory for these modes)
+      const target1Met = this.eliminatedCounts[this.levelTargets[0].type] >= this.levelTargets[0].count
+      const target2Met = this.eliminatedCounts[this.levelTargets[1].type] >= this.levelTargets[1].count
+      const target3Met = this.eliminatedCounts[this.levelTargets[2].type] >= this.levelTargets[2].count
+      const victoryConditionMet = target1Met && target2Met && target3Met
+      
+      if (victoryConditionMet && !this.levelComplete) {
+        this.levelComplete = true
+        this.sound.play('level_complete', { volume: audioConfig.sfxVolume.value })
+        this.scene.launch('VictoryScene', { 
+          score: this.score,
+          moves: this.currentMoves,
+          maxMoves: this.currentMoves,
+          mode: this.selectedGameMode
+        })
+      }
+      return // No move limit in these modes
+    }
+    
+    // 🎯 Check victory conditions using random targets!
+    const target1Met = this.eliminatedCounts[this.levelTargets[0].type] >= this.levelTargets[0].count
+    const target2Met = this.eliminatedCounts[this.levelTargets[1].type] >= this.levelTargets[1].count
+    const target3Met = this.eliminatedCounts[this.levelTargets[2].type] >= this.levelTargets[2].count
+    const victoryConditionMet = target1Met && target2Met && target3Met
+    
+    if (victoryConditionMet && !this.levelComplete) {
+      this.levelComplete = true
+      this.sound.play('level_complete', { volume: audioConfig.sfxVolume.value })
+      
+      // Stop timer for Time Attack mode
+      if (this.selectedGameMode === 'time_attack' && this.gameTimer) {
+        this.gameTimer.remove()
+      }
+      
+      // 🎮 MULTIPLAYER: If someone wins, opponent loses!
+      if (this.gameMode === 'online') {
         multiplayerService.sendGameEnd('win')
       }
-
-      this.scene.launch('VictoryScene', {
-        score: this.logic.score,
-        moves: this.logic.currentMoves,
-        maxMoves: result.mode === 'endless' || result.mode === 'zen' ? this.logic.currentMoves : levelConfig.maxMoves.value,
-        mode: this.logic.gameMode
+      
+      this.scene.launch('VictoryScene', { 
+        score: this.score,
+        moves: this.currentMoves,
+        maxMoves: levelConfig.maxMoves.value,
+        mode: this.gameMode  // 🎮 Pass 'online' or 'single' for stats tracking
       })
-    } else if (result.type === 'gameOver') {
-      this.logic.gameOver = true
-      this.audio.playGameEndSound(false)
-
-      // MULTIPLAYER: If someone loses, tell opponent
-      if (this.logic.gameMode === 'online') {
+      return
+    }
+    
+    // Check failure conditions (only for classic mode, not time_attack which uses timer)
+    if (this.selectedGameMode === 'classic' && this.currentMoves >= levelConfig.maxMoves.value && !this.levelComplete) {
+      this.gameOver = true
+      this.sound.play('game_over', { volume: audioConfig.sfxVolume.value })
+      
+      // 🎮 MULTIPLAYER: If someone loses, tell opponent
+      if (this.gameMode === 'online') {
         multiplayerService.sendGameEnd('lose')
       }
-
+      
       this.scene.launch('GameOverScene', {
-        score: this.logic.score,
-        moves: this.logic.currentMoves,
-        mode: this.logic.gameMode
+        score: this.score,
+        moves: this.currentMoves,
+        mode: this.gameMode  // 🎮 Pass 'online' or 'single' for stats tracking
       })
-    } else if (result.type === 'timeUp') {
-      this.logic.gameOver = true
-      this.audio.playGameEndSound(false)
+    }
+  }
 
-      // MULTIPLAYER: If someone loses due to time, tell opponent
-      if (this.logic.gameMode === 'online') {
+  // 🎵 Stop all music from other scenes to prevent overlap
+  stopAllOtherMusic() {
+    const allScenes = ['TitleScene', 'ModeSelectionScene', 'GameModeMenuScene', 'OnlineLobbyScene']
+    
+    allScenes.forEach(sceneKey => {
+      const scene = this.scene.get(sceneKey)
+      if (scene && scene.backgroundMusic) {
+        if (scene.backgroundMusic.isPlaying) {
+          scene.backgroundMusic.stop()
+          console.log(`🎵 Stopped music from ${sceneKey}`)
+        }
+      }
+    })
+  }
+
+  playBackgroundMusic() {
+    // Don't play music if already playing
+    if (this.backgroundMusic && this.backgroundMusic.isPlaying) {
+      return
+    }
+    
+    this.backgroundMusic = this.sound.add('tom_jerry_80s_retro_theme', {
+      volume: audioConfig.musicVolume.value,
+      loop: true
+    })
+    this.backgroundMusic.play()
+  }
+  
+  // ⏱️ Start game timer for Time Attack mode
+  startGameTimer() {
+    this.timeRemaining = 120 // 2 minutes
+    
+    this.gameTimer = this.time.addEvent({
+      delay: 1000, // 1 second
+      callback: this.updateGameTimer,
+      callbackScope: this,
+      loop: true
+    })
+  }
+  
+  // ⏱️ Update game timer display
+  updateGameTimer() {
+    if (this.gameOver || this.levelComplete) {
+      if (this.gameTimer) {
+        this.gameTimer.remove()
+      }
+      return
+    }
+    
+    this.timeRemaining--
+    
+    // Update display
+    const minutes = Math.floor(this.timeRemaining / 60)
+    const seconds = this.timeRemaining % 60
+    const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`
+    
+    this.moveCounterText.setText(`⏱️ Time: ${timeString}`)
+    
+    // Warning colors
+    if (this.timeRemaining <= 10) {
+      this.moveCounterText.setColor('#FF0000') // Red
+    } else if (this.timeRemaining <= 30) {
+      this.moveCounterText.setColor('#FF6347') // Orange
+    }
+    
+    // Time's up!
+    if (this.timeRemaining <= 0) {
+      this.gameTimer.remove()
+      this.gameOver = true
+      this.sound.play('game_over', { volume: audioConfig.sfxVolume.value })
+      
+      // 🎮 MULTIPLAYER: If someone loses due to time, tell opponent
+      if (this.gameMode === 'online') {
         multiplayerService.sendGameEnd('lose')
       }
-
+      
       this.scene.launch('GameOverScene', {
-        score: this.logic.score,
-        moves: this.logic.currentMoves,
-        mode: this.logic.gameMode,
+        score: this.score,
+        moves: this.currentMoves,
+        mode: this.gameMode,  // 🎮 Pass 'online' or 'single' for stats tracking
         reason: 'Time is up!'
       })
     }
   }
 
+  highlightAvailableSlots() {
+    // Remove highlight effect, keep original style
+  }
   
+  clearSlotHighlights() {
+    // Remove highlight effect, keep original style
+  }
+  
+  // This method has already been defined earlier, remove duplicate definition
+  
+  // Check if specified slot can place item
+  canPlaceItemInSlot(row, col) {
+    const gridCell = this.gridData[row][col]
+    // Check if there are any empty positions
+    return gridCell.positions.some(pos => pos === null)
+  }
 
+  // Tom and Jerry retro cartoon items opaque bright processing
+  applyTomJerryItemEnhancement(item) {
+    // Professional quality rendering settings
+    item.setBlendMode(Phaser.BlendModes.NORMAL)
+    
+    // Clear any tint, keep original bright colors
+    item.clearTint()
+    
+    // Keep completely opaque for sharp, clean look
+    item.setAlpha(1.0)
+    
+    // Add subtle drop shadow for depth and professionalism
+    if (this.plugins && this.plugins.get('rexDropShadowPipeline')) {
+      item.setPipeline('rexDropShadowPipeline')
+    }
+    
+    // Enhance texture quality - disable pixel art mode for smoother rendering
+    if (item.texture && item.texture.source && item.texture.source[0]) {
+      item.texture.source[0].setFilter(1) // LINEAR filtering for smooth anti-aliased edges
+    }
+    
+    // Add subtle brightness enhancement
+    if (item.setTintFill) {
+      item.setTint(0xFFFFFF)
+    }
+  }
 
+  // Apply high-quality rendering to prevent pixelation
+  applyHighQualityRendering(item) {
+    // Safe texture quality improvement without direct WebGL access
+    if (item.texture && item.texture.source && item.texture.source[0]) {
+      try {
+        // LINEAR filtering for smooth scaling (most important!)
+        item.texture.source[0].setFilter(1) // 1 = LINEAR (smooth), 0 = NEAREST (pixelated)
+        
+        // Set scale mode if available
+        if (item.texture.source[0].scaleMode !== undefined) {
+          item.texture.source[0].scaleMode = 1 // LINEAR for smooth rendering
+        }
+      } catch (e) {
+        // Silently fail if texture not ready
+        console.warn('Texture not ready for quality enhancement')
+      }
+    }
+    
+    // Ensure antialiasing is enabled
+    item.setBlendMode(Phaser.BlendModes.NORMAL)
+    
+    // Disable pixel snapping for smoother sub-pixel positioning
+    item.roundPixels = false
+    
+    // Force alpha to 1.0 for crisp rendering
+    if (item.alpha < 1) {
+      item.setAlpha(1.0)
+    }
+    
+    // Clear any tint for better text visibility
+    item.clearTint()
+  }
 
   pauseGame() {
     if (!this.gameOver && !this.levelComplete) {
@@ -3033,20 +3575,40 @@ export class GameScene extends Phaser.Scene {
     })
     
     // Play notification sound
-    this.audio.playSound('ui_click')
+    this.sound.play('ui_click', { volume: audioConfig.sfxVolume.value })
   }
 
   shutdown() {
-    // Stop all timers and cleanup
-    this.logic.shutdown()
-    this.eventsManager.shutdown()
-    this.audio.shutdown()
-    this.accessibility.destroy()
-    this.errorHandler.destroy()
-    this.powerUps.destroy()
-    this.achievements.destroy()
-    this.assetManager.destroy()
-    this.uiManager.destroy()
+    // Stop game timer if exists
+    if (this.gameTimer) {
+      this.gameTimer.remove()
+      this.gameTimer = null
+    }
+    
+    // 🎬 Stop obstacle spawn timer
+    if (this.obstacleSpawnTimer) {
+      this.obstacleSpawnTimer.remove()
+      this.obstacleSpawnTimer = null
+    }
+    
+    // 🎪 Stop Tom event timer
+    if (this.tomEventTimer) {
+      this.tomEventTimer.remove()
+      this.tomEventTimer = null
+    }
+    
+    // 🔍 Stop no-moves detection timer
+    if (this.noMovesTimer) {
+      this.noMovesTimer.remove()
+      this.noMovesTimer = null
+    }
+    
+    // Stop game music when leaving this scene
+    if (this.backgroundMusic && this.backgroundMusic.isPlaying) {
+      this.backgroundMusic.stop()
+      this.backgroundMusic.destroy()
+      this.backgroundMusic = null
+    }
   }
 
   update() {
