@@ -373,7 +373,7 @@ export class AssetManager {
   isAssetLoaded(key) {
     return this.loadedAssets.has(key) ||
            this.scene.textures.exists(key) ||
-           this.scene.sound.sounds.some(sound => sound.key === key)
+           (this.scene.sound && this.scene.sound.sounds && this.scene.sound.sounds.some(sound => sound.key === key))
   }
 
   /**
@@ -391,11 +391,13 @@ export class AssetManager {
    * 🔊 Décharger un son
    */
   unloadAudio(key) {
-    const sound = this.scene.sound.get(key)
-    if (sound) {
-      sound.destroy()
-      this.loadedAssets.delete(key)
-      console.log(`🔊 Unloaded audio: ${key}`)
+    if (this.scene.sound && typeof this.scene.sound.get === 'function') {
+      const sound = this.scene.sound.get(key)
+      if (sound && typeof sound.destroy === 'function') {
+        sound.destroy()
+        this.loadedAssets.delete(key)
+        console.log(`🔊 Unloaded audio: ${key}`)
+      }
     }
   }
 
@@ -506,8 +508,11 @@ export class AssetManager {
     // Préparer les sons fréquemment utilisés
     const frequentSounds = ['item_pickup', 'match_eliminate', 'ui_click']
     frequentSounds.forEach(soundKey => {
-      if (this.scene.sound.exists(soundKey)) {
-        this.markAssetAsUsed(soundKey)
+      if (this.scene.sound && typeof this.scene.sound.get === 'function') {
+        const sound = this.scene.sound.get(soundKey)
+        if (sound) {
+          this.markAssetAsUsed(soundKey)
+        }
       }
     })
   }
