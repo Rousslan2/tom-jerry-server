@@ -1388,32 +1388,36 @@ export class GameScene extends Phaser.Scene {
         }
       })
     } else {
-      // 🎬 NEW: Spawn animation similar to obstacles - items fall from sky!
-      // Start from top of screen
-      const startY = -100
-      item.y = startY
-      item.setScale(0.075)
-      item.setAlpha(1)
+      // 🎬 UNIQUE: Magical pop-in animation for normal items - different from obstacles!
+      // Start small and invisible
+      item.setScale(0)
+      item.setAlpha(0)
 
-      // Fall from sky with bounce
+      // Magical scale and fade in with elastic effect
       this.tweens.add({
         targets: item,
-        y: slot.y + offset.y,
-        duration: 600,
-        ease: 'Bounce.easeOut',
-        delay: Phaser.Math.Between(0, 300)
+        scale: 0.075,
+        alpha: 1,
+        duration: 400,
+        ease: 'Back.easeOut.config(2.5)',  // Strong elastic bounce
+        delay: Phaser.Math.Between(0, 200),
+        onComplete: () => {
+          // Add sparkle effect after appearing
+          this.createItemSparkleEffect(item.x, item.y)
+        }
       })
 
-      // Rotate while falling
-      this.tweens.add({
-        targets: item,
-        rotation: Math.PI * 2,
-        duration: 600,
-        ease: 'Linear',
-        delay: Phaser.Math.Between(0, 300),
-        onComplete: () => {
-          // Impact effect when landing!
-          this.createObstacleImpactEffect(item.x, item.y)
+      // Gentle floating animation
+      this.time.delayedCall(Phaser.Math.Between(500, 800), () => {
+        if (item && item.active) {
+          this.tweens.add({
+            targets: item,
+            y: item.y - 3,
+            duration: 800,
+            ease: 'Sine.easeInOut',
+            yoyo: true,
+            repeat: -1
+          })
         }
       })
     }
@@ -2020,7 +2024,7 @@ export class GameScene extends Phaser.Scene {
   createObstacleImpactEffect(x, y) {
     // Play impact sound
     this.sound.play('item_drop', { volume: audioConfig.sfxVolume.value * 1.2 })
-    
+
     // Dust cloud rings
     const rings = []
     for (let i = 0; i < 3; i++) {
@@ -2029,7 +2033,7 @@ export class GameScene extends Phaser.Scene {
       ring.strokeCircle(x, y, 10)
       ring.setDepth(9999)
       rings.push(ring)
-      
+
       this.tweens.add({
         targets: ring,
         scaleX: 3 + i,
@@ -2041,7 +2045,7 @@ export class GameScene extends Phaser.Scene {
         onComplete: () => ring.destroy()
       })
     }
-    
+
     // Stars flying out
     const starEffects = ['⭐', '💫', '✨']
     for (let i = 0; i < 8; i++) {
@@ -2049,10 +2053,10 @@ export class GameScene extends Phaser.Scene {
         fontSize: '18px',
         color: '#FFD700'
       }).setOrigin(0.5, 0.5).setDepth(10000)
-      
+
       const angle = (i / 8) * Math.PI * 2
       const distance = 50
-      
+
       this.tweens.add({
         targets: star,
         x: x + Math.cos(angle) * distance,
@@ -2064,6 +2068,36 @@ export class GameScene extends Phaser.Scene {
         onComplete: () => star.destroy()
       })
     }
+  }
+
+  // ✨ Create sparkle effect for normal items
+  createItemSparkleEffect(x, y) {
+    // Magical sparkles around the item
+    const sparkleEffects = ['✨', '💫', '⭐', '🌟']
+    for (let i = 0; i < 6; i++) {
+      const sparkle = this.add.text(x, y, sparkleEffects[Math.floor(Math.random() * sparkleEffects.length)], {
+        fontSize: '12px',
+        color: ['#FFD700', '#FF69B4', '#87CEEB', '#98FB98'][Math.floor(Math.random() * 4)]
+      }).setOrigin(0.5, 0.5).setDepth(10000)
+
+      const angle = (i / 6) * Math.PI * 2
+      const distance = 25
+
+      this.tweens.add({
+        targets: sparkle,
+        x: x + Math.cos(angle) * distance,
+        y: y + Math.sin(angle) * distance,
+        alpha: 0,
+        scale: 0.5,
+        duration: 600,
+        ease: 'Power2',
+        delay: i * 50,
+        onComplete: () => sparkle.destroy()
+      })
+    }
+
+    // Play magical sound
+    this.sound.play('item_pickup', { volume: audioConfig.sfxVolume.value * 0.4 })
   }
   
   // Update position indicator color
