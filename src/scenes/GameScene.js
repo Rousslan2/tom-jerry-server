@@ -52,6 +52,7 @@ export class GameScene extends Phaser.Scene {
     // 💡 Hint System - Limited to 3 hints per game
     this.hintsUsed = 0
     this.maxHints = 3
+    this.hintAutoHideTimer = null // Timer to auto-hide hints after 5 seconds
     
     // Opponent stats (for online mode)
     this.opponentStats = {
@@ -3365,6 +3366,12 @@ export class GameScene extends Phaser.Scene {
     // Clear any existing hints first
     this.clearHints()
 
+    // Clear any existing auto-hide timer
+    if (this.hintAutoHideTimer) {
+      this.hintAutoHideTimer.remove()
+      this.hintAutoHideTimer = null
+    }
+
     const rows = gameConfig.gridRows.value
     const cols = gameConfig.gridCols.value
 
@@ -3406,6 +3413,14 @@ export class GameScene extends Phaser.Scene {
       this.hintsUsed++ // Increment hint counter
       this.updatePlayerStatsHint() // Update hint usage in stats
       this.updateHintButtonText() // Update button text
+
+      // Set up auto-hide timer for 5 seconds
+      this.hintAutoHideTimer = this.time.delayedCall(5000, () => {
+        if (!this.gameOver && !this.levelComplete) {
+          this.clearHints()
+          console.log('💡 Hint auto-hidden after 5 seconds')
+        }
+      })
     } else {
       // If no hints found, show a message
       this.showNoHintMessage()
@@ -3820,6 +3835,12 @@ export class GameScene extends Phaser.Scene {
         }
       })
       this.activeHints = []
+    }
+
+    // Clear the auto-hide timer if it exists
+    if (this.hintAutoHideTimer) {
+      this.hintAutoHideTimer.remove()
+      this.hintAutoHideTimer = null
     }
   }
 
@@ -4484,25 +4505,31 @@ export class GameScene extends Phaser.Scene {
       this.gameTimer.remove()
       this.gameTimer = null
     }
-    
+
     // 🎬 Stop obstacle spawn timer
     if (this.obstacleSpawnTimer) {
       this.obstacleSpawnTimer.remove()
       this.obstacleSpawnTimer = null
     }
-    
+
     // 🎪 Stop Tom event timer
     if (this.tomEventTimer) {
       this.tomEventTimer.remove()
       this.tomEventTimer = null
     }
-    
+
     // 🔍 Stop no-moves detection timer
     if (this.noMovesTimer) {
       this.noMovesTimer.remove()
       this.noMovesTimer = null
     }
-    
+
+    // 💡 Stop hint auto-hide timer
+    if (this.hintAutoHideTimer) {
+      this.hintAutoHideTimer.remove()
+      this.hintAutoHideTimer = null
+    }
+
     // Stop game music when leaving this scene
     if (this.backgroundMusic && this.backgroundMusic.isPlaying) {
       this.backgroundMusic.stop()
