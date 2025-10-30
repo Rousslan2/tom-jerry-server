@@ -692,17 +692,22 @@ export class GameScene extends Phaser.Scene {
 
   createTargetDisplay() {
     const screenWidth = this.cameras.main.width
-    
+
+    // 🎮 For Zen mode, don't show targets at all - pure relaxation!
+    if (this.selectedGameMode === 'zen') {
+      return
+    }
+
     // Cute target background - cream yellow gradient background
     this.targetBg = this.add.graphics()
     this.targetBg.fillGradientStyle(0xFFFACD, 0xFFFACD, 0xF5DEB3, 0xF5DEB3, 0.95)  // Cream yellow gradient
     this.targetBg.fillRoundedRect(20, 20, screenWidth * 0.3, 120, 20)
-    
+
     // Add cute border
     this.targetBg.lineStyle(4, 0xFFFFFF, 0.9)
     this.targetBg.strokeRoundedRect(20, 20, screenWidth * 0.3, 120, 20)
     this.targetBg.setDepth(2000) // Ensure UI is on top layer
-    
+
     // Tom and Jerry themed target text - classic cartoon style
     this.targetText = this.add.text(screenWidth * 0.15, 35, '🧀 TOM & JERRY CHASE 🐭', {
       fontSize: `${window.getResponsiveFontSize(20)}px`,
@@ -713,23 +718,23 @@ export class GameScene extends Phaser.Scene {
       align: 'center',
       fontStyle: 'bold'
     }).setOrigin(0.5, 0.5).setDepth(2100)
-    
+
     // 🎯 Use random targets!
     const targets = [
       { type: this.levelTargets[0].type, target: this.levelTargets[0].count, x: screenWidth * 0.08 },
       { type: this.levelTargets[1].type, target: this.levelTargets[1].count, x: screenWidth * 0.15 },
       { type: this.levelTargets[2].type, target: this.levelTargets[2].count, x: screenWidth * 0.22 }
     ]
-    
+
     this.targetDisplays = []
-    
+
     targets.forEach((target, index) => {
       const icon = this.add.image(target.x, 80, target.type).setScale(0.050).setDepth(2100)  // Adjusted for new optimized assets
-      
+
       // Apply background removal effect to Tom and Jerry retro cartoon target icons
       this.applyTomJerryItemEnhancement(icon)
       this.applyHighQualityRendering(icon)
-      
+
       // Add cute blinking effect to icons
       this.tweens.add({
         targets: icon,
@@ -740,7 +745,7 @@ export class GameScene extends Phaser.Scene {
         yoyo: true,
         repeat: -1
       })
-      
+
       const text = this.add.text(target.x, 115, `${this.eliminatedCounts[target.type]}/${target.target}`, {
         fontSize: `${window.getResponsiveFontSize(16)}px`,
         fontFamily: window.getGameFont(),  // Cute font
@@ -750,7 +755,7 @@ export class GameScene extends Phaser.Scene {
         align: 'center',
         fontStyle: 'bold'
       }).setOrigin(0.5, 0.5).setDepth(2100)
-      
+
       this.targetDisplays.push({ icon, text, type: target.type, target: target.target })
     })
   }
