@@ -4300,11 +4300,14 @@ export class GameScene extends Phaser.Scene {
           // Only make non-obstacle items interactive
           const isObstacle = item.itemType === 'anvil_obstacle' || item.itemType === 'safe_obstacle' || item.itemType === 'piano_obstacle'
           if ((this.selectedGameMode === 'cascade' || wasInteractive) && !isObstacle) {
+            console.log(`🌊 CASCADE FALL: Making ${item.itemType} interactive at (${fromRow + 1},${fromCol})`)
             item.setInteractive({ draggable: true })
             // 📱 Re-enhance drag & drop for mobile
             if (this.mobileHelper) {
               this.mobileHelper.enhanceDragAndDrop(item)
             }
+          } else if (isObstacle) {
+            console.log(`🌊 CASCADE FALL: ${item.itemType} is obstacle, keeping non-interactive`)
           }
 
           // Force update item properties to ensure it's properly detected
@@ -4620,10 +4623,13 @@ export class GameScene extends Phaser.Scene {
 
          if (!isObstacle) {
            // Only make non-obstacle items interactive
+           console.log(`🌊 CASCADE SPAWN: Setting up ${itemType} as draggable`)
            item.setInteractive({ draggable: true })
            if (this.mobileHelper) {
              this.mobileHelper.enhanceDragAndDrop(item)
            }
+         } else {
+           console.log(`🌊 CASCADE SPAWN: ${itemType} is obstacle, not making interactive`)
          }
 
          // Apply enhancements BEFORE animation to ensure proper rendering
@@ -4654,12 +4660,28 @@ export class GameScene extends Phaser.Scene {
            ease: 'Bounce.easeOut',
            delay: index * 50,
            onComplete: () => {
+             console.log(`🌊 CASCADE SPAWN: Item ${itemType} landed at (${pos.row},${pos.col},${pos.pos})`)
+
              // Double-check item is still valid and properly rendered
              if (item && item.active && !item.destroyed) {
+               console.log(`🌊 CASCADE SPAWN: Item is valid, setting up properties`)
+
                // Ensure texture is properly applied
                item.setTexture(itemType)
                this.applyTomJerryItemEnhancement(item)
                this.applyHighQualityRendering(item)
+
+               // CRITICAL: Force re-enable interactivity for cascade mode items
+               const isObstacle = itemType === 'anvil_obstacle' || itemType === 'safe_obstacle' || itemType === 'piano_obstacle'
+               if (!isObstacle) {
+                 console.log(`🌊 CASCADE SPAWN: Making ${itemType} interactive`)
+                 item.setInteractive({ draggable: true })
+                 if (this.mobileHelper) {
+                   this.mobileHelper.enhanceDragAndDrop(item)
+                 }
+               } else {
+                 console.log(`🌊 CASCADE SPAWN: ${itemType} is obstacle, keeping non-interactive`)
+               }
 
                // Update grid data
                this.gridData[pos.row][pos.col].positions[pos.pos] = itemType
@@ -4667,8 +4689,14 @@ export class GameScene extends Phaser.Scene {
 
                this.updatePositionIndicator(pos.row, pos.col, pos.pos, itemType)
 
+               console.log(`🌊 CASCADE SPAWN: Grid updated, checking for matches at (${pos.row},${pos.col})`)
+
                // Check for matches
                this.checkForElimination(pos.row, pos.col)
+
+               console.log(`🌊 CASCADE SPAWN: Complete for ${itemType} at (${pos.row},${pos.col},${pos.pos})`)
+             } else {
+               console.warn(`🌊 CASCADE SPAWN: Item ${itemType} was destroyed or invalid after animation!`)
              }
            }
          })
