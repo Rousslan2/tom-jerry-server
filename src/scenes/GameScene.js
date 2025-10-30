@@ -16,7 +16,7 @@ export class GameScene extends Phaser.Scene {
     this.gameMode = 'single' // 'single' or 'online'
     this.isHost = false
     
-    // 🎮 NEW: Game mode type (classic, time_attack, endless, zen, cascade)
+    // 🎮 NEW: Game mode type (classic, time_attack, endless, zen, rush)
     this.selectedGameMode = 'classic'
     
     // 🎯 NOTE: Random targets will be generated AFTER gameMode is set in init()
@@ -29,6 +29,10 @@ export class GameScene extends Phaser.Scene {
     // ⏱️ NEW: Timer for Time Attack mode
     this.gameTimer = null
     this.timeRemaining = 120 // 2 minutes in seconds
+
+    // ⚡ NEW: Rush mode timer (starts at 30 seconds, gain time by playing fast!)
+    this.rushTimeRemaining = 30 // Start with 30 seconds
+    this.lastEliminationTime = 0 // Track time between eliminations
     
     // Grid system
     this.gridData = []
@@ -208,6 +212,11 @@ export class GameScene extends Phaser.Scene {
     // ⏱️ Start timer for Time Attack mode
     if (this.selectedGameMode === 'time_attack') {
       this.startGameTimer()
+    }
+
+    // ⚡ Start timer for Rush mode (inverted timer - gain time!)
+    if (this.selectedGameMode === 'rush') {
+      this.startRushTimer()
     }
     
     // 🎬 Start obstacle spawn timer - spawn Tom & Jerry obstacles regularly
@@ -707,50 +716,6 @@ export class GameScene extends Phaser.Scene {
       return
     }
 
-    // 🎮 For Cascade mode, show special description
-    if (this.selectedGameMode === 'cascade') {
-      // Create special cascade mode UI
-      this.targetBg = this.add.graphics()
-      this.targetBg.fillGradientStyle(0x1E90FF, 0x1E90FF, 0x4169E1, 0x4169E1, 0.95)
-      this.targetBg.fillRoundedRect(20, 20, screenWidth * 0.3, 120, 20)
-
-      this.targetBg.lineStyle(4, 0xFFFFFF, 0.9)
-      this.targetBg.strokeRoundedRect(20, 20, screenWidth * 0.3, 120, 20)
-      this.targetBg.setDepth(2000)
-
-      this.targetText = this.add.text(screenWidth * 0.15, 35, '🌊 CASCADE MODE', {
-        fontSize: `${window.getResponsiveFontSize(20)}px`,
-        fontFamily: window.getGameFont(),
-        color: '#FFFFFF',
-        stroke: '#000000',
-        strokeThickness: 3,
-        align: 'center',
-        fontStyle: 'bold'
-      }).setOrigin(0.5, 0.5).setDepth(2100)
-
-      const cascadeDesc = this.add.text(screenWidth * 0.15, 80, 'Chain Reactions!\nItems fall & create combos!', {
-        fontSize: `${window.getResponsiveFontSize(14)}px`,
-        fontFamily: window.getGameFont(),
-        color: '#FFFFFF',
-        stroke: '#000000',
-        strokeThickness: 2,
-        align: 'center',
-        fontStyle: 'bold'
-      }).setOrigin(0.5, 0.5).setDepth(2100)
-
-      // Add cascade score display
-      this.cascadeScoreText = this.add.text(screenWidth * 0.15, 110, 'Cascade: 0 | Max: 0', {
-        fontSize: `${window.getResponsiveFontSize(12)}px`,
-        fontFamily: window.getGameFont(),
-        color: '#FFD700',
-        stroke: '#000000',
-        strokeThickness: 2,
-        align: 'center',
-        fontStyle: 'bold'
-      }).setOrigin(0.5, 0.5).setDepth(2100)
-
-      return
-    }
 
     // Cute target background - cream yellow gradient background
     this.targetBg = this.add.graphics()
@@ -817,8 +782,8 @@ export class GameScene extends Phaser.Scene {
   createMoveCounter() {
     const screenWidth = this.cameras.main.width
     
-    // 🎮 For Endless/Zen/Cascade mode, show different UI
-    if (this.selectedGameMode === 'endless' || this.selectedGameMode === 'zen' || this.selectedGameMode === 'cascade') {
+    // 🎮 For Endless/Zen/Rush mode, show different UI
+    if (this.selectedGameMode === 'endless' || this.selectedGameMode === 'zen' || this.selectedGameMode === 'rush') {
       // Show move count without limit
       this.moveCounterBg = this.add.graphics()
       this.moveCounterBg.fillGradientStyle(0x9370DB, 0x9370DB, 0xBA55D3, 0xBA55D3, 0.95)
@@ -830,7 +795,7 @@ export class GameScene extends Phaser.Scene {
 
       let modeIcon = '♾️'
       if (this.selectedGameMode === 'zen') modeIcon = '🏆'
-      if (this.selectedGameMode === 'cascade') modeIcon = '🌊'
+      if (this.selectedGameMode === 'rush') modeIcon = '⚡'
 
       this.moveCounterText = this.add.text(screenWidth * 0.8, 50, `${modeIcon} Moves: ${this.currentMoves}`, {
         fontSize: `${window.getResponsiveFontSize(18)}px`,
@@ -1301,10 +1266,7 @@ export class GameScene extends Phaser.Scene {
 
       // 🎯 HARDER: First 20 items have 50% chance to be target items
       // Reduced from 65% to make it more challenging!
-      // 🌊 CASCADE MODE: Increase spawn rate for more items
-      const spawnChance = this.selectedGameMode === 'cascade' ?
-        Math.max(gameConfig.targetItemSpawnChanceStart.value / 100, 0.7) : // 70% minimum for cascade
-        gameConfig.targetItemSpawnChanceStart.value / 100
+      const spawnChance = gameConfig.targetItemSpawnChanceStart.value / 100
 
       if (i < 20 && Math.random() < spawnChance) {
         itemType = targetTypes[Phaser.Math.Between(0, targetTypes.length - 1)]
@@ -2470,6 +2432,23 @@ export class GameScene extends Phaser.Scene {
     // Update score display
     this.updateScoreDisplay()
 
+    // ⚡ RUSH MODE: Add time bonuses for eliminations!
+    if (this.selectedGameMode === 'rush') {
+      // Calculate time since last elimination for rush mode
+      const currentTime = this.time.now
+      const timeSinceLastElimination = currentTime - this.lastEliminationTime
+
+      // Quick elimination bonus (+5 seconds)
+      if (timeSinceLastElimination < 3000) { // Within 3 seconds
+        this.addRushTimeBonus(5, 'Quick Elimination')
+      }
+
+      // Combo bonus (+10 seconds for combos)
+      if (this.combo >= 2) {
+        this.addRushTimeBonus(10, `Combo x${this.combo}`)
+      }
+    }
+
     // ⭐ Play appropriate sound based on combo level - NEW SOUNDS! 🎵
     if (this.combo >= 5) {
       this.sound.play('combo_mega', { volume: audioConfig.sfxVolume.value })
@@ -2542,16 +2521,6 @@ export class GameScene extends Phaser.Scene {
       this.time.delayedCall(gameConfig.refillDelay.value, () => {
         this.refillSlot(row, col)
 
-        // 🌊 CASCADE MODE: Trigger cascade effect after elimination and restock
-        if (this.selectedGameMode === 'cascade') {
-          this.time.delayedCall(300, () => {
-            this.triggerCascadeEffect(row, col)
-            // Spawn additional items from top after cascade
-            this.time.delayedCall(800, () => {
-              this.spawnCascadeItemsFromTop()
-            })
-          })
-        }
       })
     })
   }
@@ -2852,11 +2821,7 @@ export class GameScene extends Phaser.Scene {
 
       // 🎯 HARDER: 55% chance for EACH item to be a target if needed
       // Reduced from 70% to make it more challenging!
-      // 🌊 CASCADE MODE: Increase spawn rate for more items
-      const baseSpawnChance = gameConfig.targetItemSpawnChanceRefill.value / 100
-      const spawnChance = this.selectedGameMode === 'cascade' ?
-        Math.max(baseSpawnChance, 0.8) : // 80% minimum for cascade refill
-        baseSpawnChance
+      const spawnChance = gameConfig.targetItemSpawnChanceRefill.value / 100
   
       if (incompleteTargets.length > 0 && Math.random() < spawnChance) {
         itemType = incompleteTargets[Phaser.Math.Between(0, incompleteTargets.length - 1)]
@@ -3700,8 +3665,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   checkGameEnd() {
-    // 🎮 Endless/Zen/Cascade mode - no game over conditions, no victory conditions either!
-    if (this.selectedGameMode === 'endless' || this.selectedGameMode === 'zen' || this.selectedGameMode === 'cascade') {
+    // 🎮 Endless/Zen/Rush mode - no game over conditions, no victory conditions either!
+    if (this.selectedGameMode === 'endless' || this.selectedGameMode === 'zen' || this.selectedGameMode === 'rush') {
       // Pure relaxation mode - no win/lose conditions
       // Just keep playing forever!
       return
@@ -3808,34 +3773,34 @@ export class GameScene extends Phaser.Scene {
       }
       return
     }
-    
+
     this.timeRemaining--
-    
+
     // Update display
     const minutes = Math.floor(this.timeRemaining / 60)
     const seconds = this.timeRemaining % 60
     const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`
-    
+
     this.moveCounterText.setText(`⏱️ Time: ${timeString}`)
-    
+
     // Warning colors
     if (this.timeRemaining <= 10) {
       this.moveCounterText.setColor('#FF0000') // Red
     } else if (this.timeRemaining <= 30) {
       this.moveCounterText.setColor('#FF6347') // Orange
     }
-    
+
     // Time's up!
     if (this.timeRemaining <= 0) {
       this.gameTimer.remove()
       this.gameOver = true
       this.sound.play('game_over', { volume: audioConfig.sfxVolume.value })
-      
+
       // 🎮 MULTIPLAYER: If someone loses due to time, tell opponent
       if (this.gameMode === 'online') {
         multiplayerService.sendGameEnd('lose')
       }
-      
+
       this.scene.launch('GameOverScene', {
         score: this.score,
         moves: this.currentMoves,
@@ -3843,6 +3808,113 @@ export class GameScene extends Phaser.Scene {
         reason: 'Time is up!'
       })
     }
+  }
+
+  // ⚡ Start Rush mode timer (inverted - gain time!)
+  startRushTimer() {
+    this.rushTimeRemaining = 30 // Start with 30 seconds
+    this.lastEliminationTime = this.time.now
+
+    this.rushTimer = this.time.addEvent({
+      delay: 1000, // 1 second
+      callback: this.updateRushTimer,
+      callbackScope: this,
+      loop: true
+    })
+  }
+
+  // ⚡ Update Rush mode timer (lose time, but gain bonuses!)
+  updateRushTimer() {
+    if (this.gameOver || this.levelComplete) {
+      if (this.rushTimer) {
+        this.rushTimer.remove()
+      }
+      return
+    }
+
+    this.rushTimeRemaining--
+
+    // Update display
+    const minutes = Math.floor(this.rushTimeRemaining / 60)
+    const seconds = this.rushTimeRemaining % 60
+    const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`
+
+    this.moveCounterText.setText(`⚡ Rush: ${timeString}`)
+
+    // Color coding based on time remaining
+    if (this.rushTimeRemaining <= 10) {
+      this.moveCounterText.setColor('#FF0000') // Red - critical!
+    } else if (this.rushTimeRemaining <= 20) {
+      this.moveCounterText.setColor('#FF6347') // Orange - warning
+    } else {
+      this.moveCounterText.setColor('#00FF00') // Green - good!
+    }
+
+    // Time's up in Rush mode!
+    if (this.rushTimeRemaining <= 0) {
+      this.rushTimer.remove()
+      this.gameOver = true
+      this.sound.play('game_over', { volume: audioConfig.sfxVolume.value })
+
+      // 🎮 MULTIPLAYER: Rush mode loss
+      if (this.gameMode === 'online') {
+        multiplayerService.sendGameEnd('lose')
+      }
+
+      this.scene.launch('GameOverScene', {
+        score: this.score,
+        moves: this.currentMoves,
+        mode: this.gameMode,
+        reason: 'Time ran out in Rush mode!'
+      })
+    }
+  }
+
+  // ⚡ Add time bonus in Rush mode
+  addRushTimeBonus(seconds, reason) {
+    if (this.selectedGameMode !== 'rush') return
+
+    const oldTime = this.rushTimeRemaining
+    this.rushTimeRemaining += seconds
+
+    // Cap at reasonable maximum (5 minutes)
+    this.rushTimeRemaining = Math.min(this.rushTimeRemaining, 300)
+
+    console.log(`⚡ RUSH BONUS: +${seconds}s for ${reason} (${oldTime}s → ${this.rushTimeRemaining}s)`)
+
+    // Visual feedback
+    this.showTimeBonusEffect(seconds, reason)
+
+    // Play bonus sound
+    this.sound.play('score_gain', { volume: audioConfig.sfxVolume.value * 0.8 })
+  }
+
+  // ⚡ Show time bonus visual effect
+  showTimeBonusEffect(seconds, reason) {
+    const screenWidth = this.cameras.main.width
+    const screenHeight = this.cameras.main.height
+
+    const bonusText = this.add.text(screenWidth / 2, screenHeight / 2 - 50, `+${seconds}s\n${reason}!`, {
+      fontSize: `${window.getResponsiveFontSize(32)}px`,
+      fontFamily: window.getGameFont(),
+      color: '#00FF00',
+      stroke: '#000000',
+      strokeThickness: 4,
+      align: 'center',
+      fontStyle: 'bold'
+    }).setOrigin(0.5, 0.5).setDepth(10001)
+
+    // Animate
+    this.tweens.add({
+      targets: bonusText,
+      y: screenHeight / 2 - 100,
+      scaleX: 1.5,
+      scaleY: 1.5,
+      alpha: 0,
+      duration: 1500,
+      ease: 'Back.easeOut',
+      onComplete: () => bonusText.destroy()
+    })
   }
 
   highlightAvailableSlots() {
@@ -4095,12 +4167,12 @@ export class GameScene extends Phaser.Scene {
     } else if (modeKey === 'endless') {
       stats.endlessGamesPlayed++
       if (isVictory) stats.endlessGamesWon++
-    } else if (modeKey === 'cascade') {
-      stats.cascadeGamesPlayed++
-      if (isVictory) stats.cascadeGamesWon++
     } else if (modeKey === 'zen') {
       stats.zenGamesPlayed++
       if (isVictory) stats.zenGamesWon++
+    } else if (modeKey === 'rush') {
+      stats.rushGamesPlayed++
+      if (isVictory) stats.rushGamesWon++
     }
 
     // Save updated stats
@@ -4147,9 +4219,7 @@ export class GameScene extends Phaser.Scene {
       endlessGamesPlayed: 0,
       endlessGamesWon: 0,
       zenGamesPlayed: 0,
-      zenGamesWon: 0,
-      cascadeGamesPlayed: 0,
-      cascadeGamesWon: 0
+      zenGamesWon: 0
     }
 
     const savedStats = localStorage.getItem('playerStats')
@@ -4176,125 +4246,27 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // 🌊 CASCADE MODE: Trigger cascade effect after elimination
-  triggerCascadeEffect(row, col) {
-    console.log('🌊 Triggering cascade effect at:', row, col)
 
-    const rows = gameConfig.gridRows.value
-    const cols = gameConfig.gridCols.value
-    let cascadeTriggered = false
-
-    // Create water ripple effect at elimination point
-    this.createWaterRippleEffect(row, col)
-
-    // Check all slots for items that can fall (starting from bottom up)
-    for (let r = rows - 2; r >= 0; r--) { // Start from second-to-last row
-      for (let c = 0; c < cols; c++) {
-        const gridCell = this.gridData[r][c]
-
-        // Check each position in the slot
-        for (let pos = 0; pos < 3; pos++) {
-          if (gridCell.positions[pos] !== null) {
-            // Check if there's empty space below this item
-            if (this.canItemFall(r, c, pos)) {
-              this.makeItemFall(r, c, pos)
-              cascadeTriggered = true
-            }
-          }
-        }
-      }
-    }
-
-    // 🌊 CASCADE MODE: Also check bottom row for items that should fall off screen
-    // In cascade mode, ALL items in bottom row should fall off screen to create space
-    if (this.selectedGameMode === 'cascade') {
-      for (let c = 0; c < cols; c++) {
-        const bottomCell = this.gridData[rows - 1][c]
-
-        // Check each position in the bottom row
-        for (let pos = 0; pos < 3; pos++) {
-          if (bottomCell.positions[pos] !== null) {
-            // Items in bottom row should fall off screen in cascade mode
-            this.makeItemFallOffScreen(rows - 1, c, pos)
-            cascadeTriggered = true
-          }
-        }
-      }
-    }
-
-    if (cascadeTriggered) {
-      console.log('🌊 Cascade effect triggered - items falling!')
-      // Play cascade sound
-      this.sound.play('item_drop', { volume: audioConfig.sfxVolume.value * 0.8 })
-
-      // Create water splash effects
-      this.createWaterSplashEffects()
-
-      // After cascade animation, check for new matches
-      this.time.delayedCall(1200, () => {
-        this.checkAllCellsForMatches()
-      })
-    } else {
-      // If no cascade happened, still check for matches in case items created new combinations
-      this.time.delayedCall(500, () => {
-        this.checkAllCellsForMatches()
-      })
-    }
-  }
-
-  // 🌊 Check if an item can fall (cascade mode allows falling on occupied positions)
+  // Check if an item can fall
   canItemFall(row, col, position) {
     // Items fall downward in the grid
     if (row >= gameConfig.gridRows.value - 1) return false // Already at bottom
-
-    // In cascade mode, items can always fall (even on occupied positions)
-    if (this.selectedGameMode === 'cascade') {
-      return true
-    }
 
     // Normal mode: only fall if there's empty space below
     const belowCell = this.gridData[row + 1][col]
     return belowCell.positions.some(pos => pos === null)
   }
 
-  // 🌊 Make an item fall to the slot below
+  // Make an item fall to the slot below
   makeItemFall(fromRow, fromCol, fromPosition) {
     const item = this.gridData[fromRow][fromCol].items[fromPosition]
     if (!item) return
 
     const belowCell = this.gridData[fromRow + 1][fromCol]
 
-    // In cascade mode, find ANY available position (including occupied ones)
-    let targetPos
-    if (this.selectedGameMode === 'cascade') {
-      // Find first available position, preferring empty ones but allowing occupied
-      targetPos = belowCell.positions.findIndex(pos => pos === null)
-      if (targetPos === -1) {
-        // All positions occupied, pick the first one (will delete existing item)
-        targetPos = 0
-      }
-    } else {
-      // Normal mode: only fall to empty positions
-      targetPos = belowCell.positions.findIndex(pos => pos === null)
-      if (targetPos === -1) return // No empty position
-    }
-
-    // If target position is occupied in cascade mode, delete the existing item
-    if (this.selectedGameMode === 'cascade' && belowCell.positions[targetPos] !== null) {
-      const existingItem = belowCell.items[targetPos]
-      if (existingItem) {
-        // Create deletion effect for the item being crushed
-        this.createItemDeletionEffect(existingItem)
-
-        // Remove the existing item
-        belowCell.positions[targetPos] = null
-        const existingIndex = belowCell.items.indexOf(existingItem)
-        if (existingIndex > -1) {
-          belowCell.items.splice(existingIndex, 1)
-        }
-        existingItem.destroy()
-      }
-    }
+    // Normal mode: only fall to empty positions
+    const targetPos = belowCell.positions.findIndex(pos => pos === null)
+    if (targetPos === -1) return // No empty position
 
     // Remove from current position
     const oldGridCell = this.gridData[fromRow][fromCol]
@@ -4340,44 +4312,27 @@ export class GameScene extends Phaser.Scene {
           // Restore original depth
           item.setDepth(originalDepth)
 
-          // CRITICAL: Ensure item is properly interactive for cascade mode
+          // CRITICAL: Ensure item is properly interactive
           // Only make non-obstacle items interactive
           const isObstacle = item.itemType === 'anvil_obstacle' || item.itemType === 'safe_obstacle' || item.itemType === 'piano_obstacle'
-          if ((this.selectedGameMode === 'cascade' || wasInteractive) && !isObstacle) {
-            console.log(`🌊 CASCADE FALL: Making ${item.itemType} interactive at (${fromRow + 1},${fromCol})`)
+          if (wasInteractive && !isObstacle) {
+            console.log(`Making ${item.itemType} interactive at (${fromRow + 1},${fromCol})`)
 
             // Remove any existing interactivity first
             if (item.input && item.input.enabled) {
               item.disableInteractive()
             }
 
-            // Set up fresh interactivity with proper event handling
+            // Set up fresh interactivity
             item.setInteractive({ draggable: true, useHandCursor: true })
-
-            // CRITICAL FIX: Ensure drag events are properly bound
-            item.removeAllListeners('dragstart')
-            item.removeAllListeners('drag')
-            item.removeAllListeners('dragend')
-
-            // Re-bind drag events
-            item.on('dragstart', (pointer, dragX, dragY) => {
-              this.handleDragStart(pointer, item)
-            })
-            item.on('drag', (pointer, dragX, dragY) => {
-              this.handleDrag(pointer, item, dragX, dragY)
-            })
-            item.on('dragend', (pointer) => {
-              this.handleDragEnd(pointer, item)
-            })
-
-            console.log(`🌊 CASCADE FALL: ${item.itemType} interactivity enabled:`, item.input ? item.input.enabled : 'no input')
+            console.log(`${item.itemType} interactivity enabled:`, item.input ? item.input.enabled : 'no input')
 
             // 📱 Re-enhance drag & drop for mobile
             if (this.mobileHelper) {
               this.mobileHelper.enhanceDragAndDrop(item)
             }
           } else if (isObstacle) {
-            console.log(`🌊 CASCADE FALL: ${item.itemType} is obstacle, keeping non-interactive`)
+            console.log(`${item.itemType} is obstacle, keeping non-interactive`)
           }
 
           // Force update item properties to ensure it's properly detected
@@ -4406,412 +4361,8 @@ export class GameScene extends Phaser.Scene {
     this.updatePositionIndicator(fromRow, fromCol, fromPosition, null)
     this.updatePositionIndicator(fromRow + 1, fromCol, targetPos, item.itemType)
 
-    console.log(`🌊 Item fell from (${fromRow},${fromCol}) to (${fromRow + 1},${fromCol})`)
+    console.log(`Item fell from (${fromRow},${fromCol}) to (${fromRow + 1},${fromCol})`)
   }
 
-  // 🌊 Create water ripple effect at cascade point
-  createWaterRippleEffect(row, col) {
-     const slot = this.gridSlots[row][col]
-     const x = slot.x
-     const y = slot.y
 
-     // Create concentric ripple circles
-     for (let i = 0; i < 3; i++) {
-       const ripple = this.add.graphics()
-       ripple.lineStyle(3, 0x1E90FF, 0.8 - i * 0.2) // Blue ripples
-       ripple.strokeCircle(x, y, 20 + i * 15)
-       ripple.setDepth(999)
-
-       this.tweens.add({
-         targets: ripple,
-         scaleX: 2.5,
-         scaleY: 2.5,
-         alpha: 0,
-         duration: 800 + i * 200,
-         ease: 'Cubic.easeOut',
-         onComplete: () => ripple.destroy()
-       })
-     }
-
-     // Add water droplets
-     for (let i = 0; i < 8; i++) {
-       const angle = (i / 8) * Math.PI * 2
-       const distance = 40
-       const dropletX = x + Math.cos(angle) * distance
-       const dropletY = y + Math.sin(angle) * distance
-
-       const droplet = this.add.text(dropletX, dropletY, '💧', {
-         fontSize: '16px'
-       }).setOrigin(0.5, 0.5).setDepth(1000)
-
-       this.tweens.add({
-         targets: droplet,
-         y: dropletY + 30,
-         alpha: 0,
-         duration: 600,
-         ease: 'Power2',
-         delay: i * 50,
-         onComplete: () => droplet.destroy()
-       })
-     }
-   }
-
-   // 🌊 Create deletion effect for items being crushed in cascade
-   createItemDeletionEffect(item) {
-     const x = item.x
-     const y = item.y
-
-     // Create explosion particles
-     for (let i = 0; i < 6; i++) {
-       const particle = this.add.graphics()
-       particle.fillStyle(0xFFD700, 0.8) // Gold particles
-       particle.fillCircle(0, 0, Phaser.Math.Between(3, 8))
-       particle.setPosition(x, y)
-       particle.setDepth(1000)
-
-       const angle = (i / 6) * Math.PI * 2
-       const distance = Phaser.Math.Between(20, 50)
-
-       this.tweens.add({
-         targets: particle,
-         x: x + Math.cos(angle) * distance,
-         y: y + Math.sin(angle) * distance,
-         alpha: 0,
-         scale: 0.3,
-         duration: Phaser.Math.Between(400, 700),
-         ease: 'Power2',
-         delay: i * 30,
-         onComplete: () => particle.destroy()
-       })
-     }
-
-     // Add spark effects
-     for (let i = 0; i < 4; i++) {
-       const spark = this.add.text(x, y, '✨', {
-         fontSize: '14px'
-       }).setOrigin(0.5, 0.5).setDepth(1000)
-
-       const angle = Phaser.Math.Between(0, Math.PI * 2)
-       const distance = Phaser.Math.Between(15, 35)
-
-       this.tweens.add({
-         targets: spark,
-         x: x + Math.cos(angle) * distance,
-         y: y + Math.sin(angle) * distance,
-         alpha: 0,
-         scale: 0.5,
-         duration: 500,
-         ease: 'Power2',
-         delay: i * 50,
-         onComplete: () => spark.destroy()
-       })
-     }
-
-     // Play deletion sound
-     this.sound.play('item_drop', { volume: audioConfig.sfxVolume.value * 0.6 })
-   }
-
-   // 🌊 Make an item fall off screen (bottom row cascade)
-   makeItemFallOffScreen(fromRow, fromCol, fromPosition) {
-     const item = this.gridData[fromRow][fromCol].items[fromPosition]
-     if (!item) return
-
-     // Remove from grid data
-     const oldGridCell = this.gridData[fromRow][fromCol]
-     oldGridCell.positions[fromPosition] = null
-     const itemIndex = oldGridCell.items.indexOf(item)
-     if (itemIndex > -1) {
-       oldGridCell.items.splice(itemIndex, 1)
-     }
-
-     // Update position indicator
-     this.updatePositionIndicator(fromRow, fromCol, fromPosition, null)
-
-     // Temporarily disable interactivity
-     const wasInteractive = item.input && item.input.enabled
-     if (wasInteractive) {
-       item.disableInteractive()
-     }
-
-     // Set high depth for falling animation
-     item.setDepth(200)
-
-     // Animate falling off screen with rotation
-     const screenHeight = this.cameras.main.height
-     this.tweens.add({
-       targets: item,
-       y: screenHeight + 100,
-       rotation: Math.PI * 4, // Multiple rotations
-       scale: 0.5,
-       alpha: 0,
-       duration: 800,
-       ease: 'Cubic.easeIn',
-       onComplete: () => {
-         // Destroy the item
-         item.destroy()
-         console.log(`🌊 Item fell off screen from (${fromRow},${fromCol})`)
-       }
-     })
-
-     // Create splash effect at bottom
-     this.createBottomSplashEffect(fromCol)
-   }
-
-   // 🌊 Create splash effect when items fall off bottom
-   createBottomSplashEffect(col) {
-     const screenWidth = this.cameras.main.width
-     const screenHeight = this.cameras.main.height
-
-     // Calculate position based on column
-     const colWidth = screenWidth / gameConfig.gridCols.value
-     const splashX = colWidth * col + colWidth / 2
-     const splashY = screenHeight - 50
-
-     // Create splash particles
-     for (let i = 0; i < 8; i++) {
-       const particle = this.add.graphics()
-       particle.fillStyle(0x87CEEB, 0.8) // Light blue
-       particle.fillCircle(0, 0, Phaser.Math.Between(4, 10))
-       particle.setPosition(splashX, splashY)
-       particle.setDepth(999)
-
-       const angle = (i / 8) * Math.PI + Phaser.Math.Between(-0.3, 0.3) // Upward arc
-       const distance = Phaser.Math.Between(30, 80)
-
-       this.tweens.add({
-         targets: particle,
-         x: splashX + Math.cos(angle) * distance,
-         y: splashY + Math.sin(angle) * distance,
-         alpha: 0,
-         scale: 0.3,
-         duration: Phaser.Math.Between(600, 1000),
-         ease: 'Power2',
-         delay: i * 20,
-         onComplete: () => particle.destroy()
-       })
-     }
-
-     // Add water droplets falling back down
-     for (let i = 0; i < 5; i++) {
-       const dropletX = splashX + Phaser.Math.Between(-20, 20)
-       const droplet = this.add.text(dropletX, splashY, '💧', {
-         fontSize: '12px'
-       }).setOrigin(0.5, 0.5).setDepth(1000)
-
-       this.tweens.add({
-         targets: droplet,
-         y: splashY + 50,
-         alpha: 0,
-         duration: 400,
-         ease: 'Power2',
-         delay: i * 50,
-         onComplete: () => droplet.destroy()
-       })
-     }
-   }
-
-   // 🌊 Create water splash effects during cascade
-   createWaterSplashEffects() {
-     const screenWidth = this.cameras.main.width
-     const screenHeight = this.cameras.main.height
-
-     // Random water splash effects across the screen
-     for (let i = 0; i < 5; i++) {
-       const splashX = Phaser.Math.Between(100, screenWidth - 100)
-       const splashY = Phaser.Math.Between(200, screenHeight - 200)
-
-       // Create splash particles
-       for (let j = 0; j < 6; j++) {
-         const particle = this.add.graphics()
-         particle.fillStyle(0x87CEEB, 0.7) // Light blue
-         particle.fillCircle(0, 0, Phaser.Math.Between(3, 8))
-         particle.setPosition(splashX, splashY)
-         particle.setDepth(999)
-
-         const angle = (j / 6) * Math.PI * 2 + Phaser.Math.Between(-0.5, 0.5)
-         const distance = Phaser.Math.Between(20, 60)
-
-         this.tweens.add({
-           targets: particle,
-           x: splashX + Math.cos(angle) * distance,
-           y: splashY + Math.sin(angle) * distance - 20,
-           alpha: 0,
-           scale: 0.5,
-           duration: Phaser.Math.Between(400, 800),
-           ease: 'Power2',
-           delay: i * 100 + j * 30,
-           onComplete: () => particle.destroy()
-         })
-       }
-     }
-   }
-
-   // 🌊 Spawn additional items from top in cascade mode
-   spawnCascadeItemsFromTop() {
-     if (this.selectedGameMode !== 'cascade') return
-
-     const rows = gameConfig.gridRows.value
-     const cols = gameConfig.gridCols.value
-
-     // Find empty positions in the top rows to spawn new items
-     const emptyPositions = []
-     for (let row = 0; row < Math.min(3, rows); row++) { // Focus on top 3 rows for more spawning
-       for (let col = 0; col < cols; col++) {
-         const gridCell = this.gridData[row][col]
-         for (let pos = 0; pos < 3; pos++) {
-           if (gridCell.positions[pos] === null) {
-             emptyPositions.push({ row, col, pos })
-           }
-         }
-       }
-     }
-
-     // Shuffle and take up to 12 positions to fill (increased from 6)
-     Phaser.Utils.Array.Shuffle(emptyPositions)
-     const positionsToFill = emptyPositions.slice(0, Math.min(12, emptyPositions.length))
-
-     if (positionsToFill.length === 0) return
-
-     // Get target types for cascade mode
-     const targetTypes = this.levelTargets.map(t => t.type)
-
-     positionsToFill.forEach((pos, index) => {
-       this.time.delayedCall(index * 100, () => {
-         // Higher chance for target items in cascade mode
-         let itemType
-         if (Math.random() < 0.8) { // 80% chance for target items (increased from 70%)
-           itemType = targetTypes[Phaser.Math.Between(0, targetTypes.length - 1)]
-         } else {
-           itemType = this.getRandomItemType()
-         }
-
-         // Create item above the screen
-         const slot = this.gridSlots[pos.row][pos.col]
-         const offset = slot.positionOffsets[pos.pos]
-
-         const item = this.add.image(slot.x + offset.x, -100, itemType)
-           .setScale(0.075)
-           .setAlpha(1)
-           .setDepth(100 + pos.pos) // Ensure proper depth
-
-         // Check if it's an obstacle - obstacles should NOT be draggable
-         const isObstacle = itemType === 'anvil_obstacle' || itemType === 'safe_obstacle' || itemType === 'piano_obstacle'
-
-         if (!isObstacle) {
-           // Only make non-obstacle items interactive
-           console.log(`🌊 CASCADE SPAWN: Setting up ${itemType} as draggable`)
-           item.setInteractive({ draggable: true })
-           if (this.mobileHelper) {
-             this.mobileHelper.enhanceDragAndDrop(item)
-           }
-         } else {
-           console.log(`🌊 CASCADE SPAWN: ${itemType} is obstacle, not making interactive`)
-         }
-
-         // Apply enhancements BEFORE animation to ensure proper rendering
-         this.applyTomJerryItemEnhancement(item)
-         this.applyHighQualityRendering(item)
-
-         // Force texture refresh to prevent white/invisible items
-         try {
-           if (item.texture && item.texture.source && item.texture.source[0]) {
-             item.texture.source[0].refresh()
-           }
-         } catch (e) {
-           // Silently handle texture refresh errors
-           console.warn('Texture refresh failed, continuing...')
-         }
-
-         // Store item info
-         item.itemType = itemType
-         item.gridRow = pos.row
-         item.gridCol = pos.col
-         item.positionIndex = pos.pos
-
-         // Animate falling from top
-         this.tweens.add({
-           targets: item,
-           y: slot.y + offset.y,
-           duration: 600,
-           ease: 'Bounce.easeOut',
-           delay: index * 50,
-           onComplete: () => {
-             console.log(`🌊 CASCADE SPAWN: Item ${itemType} landed at (${pos.row},${pos.col},${pos.pos})`)
-
-             // Double-check item is still valid and properly rendered
-             if (item && item.active && !item.destroyed) {
-               console.log(`🌊 CASCADE SPAWN: Item is valid, setting up properties`)
-
-               // Ensure texture is properly applied
-               try {
-                 item.setTexture(itemType)
-                 this.applyTomJerryItemEnhancement(item)
-                 this.applyHighQualityRendering(item)
-               } catch (e) {
-                 console.warn(`Texture update failed for ${itemType}:`, e)
-               }
-
-               // CRITICAL: Force re-enable interactivity for cascade mode items
-               const isObstacle = itemType === 'anvil_obstacle' || itemType === 'safe_obstacle' || itemType === 'piano_obstacle'
-               if (!isObstacle) {
-                 console.log(`🌊 CASCADE SPAWN: Making ${itemType} interactive`)
-
-                 // Remove any existing interactivity first
-                 if (item.input && item.input.enabled) {
-                   item.disableInteractive()
-                 }
-
-                 // Set up fresh interactivity with proper event handling
-                 item.setInteractive({ draggable: true, useHandCursor: true })
-
-                 // CRITICAL FIX: Ensure drag events are properly bound
-                 item.removeAllListeners('dragstart')
-                 item.removeAllListeners('drag')
-                 item.removeAllListeners('dragend')
-
-                 // Re-bind drag events
-                 item.on('dragstart', (pointer, dragX, dragY) => {
-                   this.handleDragStart(pointer, item)
-                 })
-                 item.on('drag', (pointer, dragX, dragY) => {
-                   this.handleDrag(pointer, item, dragX, dragY)
-                 })
-                 item.on('dragend', (pointer) => {
-                   this.handleDragEnd(pointer, item)
-                 })
-
-                 if (this.mobileHelper) {
-                   this.mobileHelper.enhanceDragAndDrop(item)
-                 }
-               } else {
-                 console.log(`🌊 CASCADE SPAWN: ${itemType} is obstacle, keeping non-interactive`)
-               }
-
-               // Update grid data
-               this.gridData[pos.row][pos.col].positions[pos.pos] = itemType
-               this.gridData[pos.row][pos.col].items.push(item)
-
-               this.updatePositionIndicator(pos.row, pos.col, pos.pos, itemType)
-
-               console.log(`🌊 CASCADE SPAWN: Grid updated, checking for matches at (${pos.row},${pos.col})`)
-
-               // Check for matches with slight delay
-               this.time.delayedCall(50, () => {
-                 this.checkForElimination(pos.row, pos.col)
-               })
-
-               console.log(`🌊 CASCADE SPAWN: Complete for ${itemType} at (${pos.row},${pos.col},${pos.pos})`)
-             } else {
-               console.warn(`🌊 CASCADE SPAWN: Item ${itemType} was destroyed or invalid after animation!`)
-             }
-           }
-         })
-
-         // Play spawn sound
-         this.sound.play('item_drop', { volume: audioConfig.sfxVolume.value * 0.8 })
-       })
-     })
-
-     console.log(`🌊 Spawned ${positionsToFill.length} additional items from top in cascade mode (increased spawn rate)`)
-   }
 }
