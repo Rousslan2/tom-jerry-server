@@ -3349,7 +3349,7 @@ export class GameScene extends Phaser.Scene {
     return possibleMatches
   }
 
-  // 💡 Show a hint by highlighting a possible move
+  // 💡 Show a hint by highlighting a possible move step-by-step
   showHint() {
     // Don't show hints if game is over
     if (this.gameOver || this.levelComplete) {
@@ -3362,7 +3362,10 @@ export class GameScene extends Phaser.Scene {
     const rows = gameConfig.gridRows.value
     const cols = gameConfig.gridCols.value
 
-    // Look for slots with exactly 2 same items that can be completed to 3
+    // Find the best hint opportunity (prioritize slots with 2 same items that can be completed)
+    let bestHint = null
+    let maxAvailableItems = 0
+
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         const gridCell = this.gridData[row][col]
@@ -3375,25 +3378,92 @@ export class GameScene extends Phaser.Scene {
           }
         })
 
-        // If we have exactly 2 of same type (and one empty spot), check if we can complete the match
+        // Check each item type with exactly 2 items
         for (let itemType in typeCounts) {
           if (typeCounts[itemType] === 2) {
-            // Check if this item type exists elsewhere on the board
-            if (this.itemExistsOnBoard(itemType, row, col)) {
-              // Found a hint! Highlight the slot with 2 items
-              this.highlightHintSlot(row, col, itemType)
-              this.hintsUsed++ // Increment hint counter
-              this.updatePlayerStatsHint() // Update hint usage in stats
-              this.updateHintButtonText() // Update button text
-              return // Show only one hint at a time
+            // Count how many of this item type are available elsewhere
+            const availableCount = this.countItemTypeAvailable(itemType, row, col)
+
+            // Prioritize hints with more available items (easier to complete)
+            if (availableCount > maxAvailableItems) {
+              maxAvailableItems = availableCount
+              bestHint = { row, col, itemType, availableCount }
             }
           }
         }
       }
     }
 
-    // If no direct matches found, show a message
-    this.showNoHintMessage()
+    if (bestHint) {
+      // Start sequential hinting
+      this.showSequentialHint(bestHint.row, bestHint.col, bestHint.itemType)
+      this.hintsUsed++ // Increment hint counter
+      this.updatePlayerStatsHint() // Update hint usage in stats
+      this.updateHintButtonText() // Update button text
+    } else {
+      // If no hints found, show a message
+      this.showNoHintMessage()
+    }
+  }
+
+  // 🔢 Count available items of a type (excluding a specific slot)
+  countItemTypeAvailable(itemType, excludeRow, excludeCol) {
+    let count = 0
+    const rows = gameConfig.gridRows.value
+    const cols = gameConfig.gridCols.value
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        if (row === excludeRow && col === excludeCol) continue
+
+        const gridCell = this.gridData[row][col]
+        gridCell.positions.forEach(pos => {
+          if (pos === itemType) count++
+        })
+      }
+    }
+
+    return count
+  }
+
+  // 🎯 Show sequential hint highlighting step by step
+  showSequentialHint(slotRow, slotCol, itemType) {
+    const slot = this.gridSlots[slotRow][slotCol]
+    const gridCell = this.gridData[slotRow][slotCol]
+
+    // Find the two items of the target type in this slot
+    const targetItems = []
+    gridCell.items.forEach((item, index) => {
+      if (item.itemType === itemType) {
+        targetItems.push(item)
+      }
+    })
+
+    if (targetItems.length < 2) return
+
+    // Step 1: Highlight the slot first
+    this.highlightHintSlot(slotRow, slotCol, itemType)
+
+    // Step 2: After slot highlight, highlight first item
+    this.time.delayedCall(1000, () => {
+      if (this.activeHints && this.activeHints.length > 0) {
+        this.highlightHintItem(targetItems[0], 1)
+      }
+    })
+
+    // Step 3: After first item, highlight second item
+    this.time.delayedCall(2000, () => {
+      if (this.activeHints && this.activeHints.length > 0) {
+        this.highlightHintItem(targetItems[1], 2)
+      }
+    })
+
+    // Step 4: Show where to find the third item
+    this.time.delayedCall(3000, () => {
+      if (this.activeHints && this.activeHints.length > 0) {
+        this.showThirdItemLocation(itemType, slotRow, slotCol)
+      }
+    })
   }
 
   // 💡 Highlight a slot as a hint
@@ -3434,10 +3504,140 @@ export class GameScene extends Phaser.Scene {
     this.activeHints.push(hintGlow)
 
     // Show hint message
-    this.showHintMessage(`💡 Try matching ${itemType.replace('_', ' ')}!`)
+    this.showHintMessage(`💡 Look at this slot with 2 ${itemType.replace('_', ' ')}!`)
 
     // Play hint sound
     this.sound.play('item_pickup', { volume: audioConfig.sfxVolume.value * 0.7 })
+  }
+
+  // 🎯 Highlight individual item with step number
+  highlightHintItem(item, stepNumber) {
+    // Create step indicator
+    const stepIndicator = this.add.text(item.x, item.y - 30, stepNumber.toString(), {
+      fontSize: '24px',
+      fontFamily: window.getGameFont(),
+      color: '#FFD700',
+      stroke: '#000000',
+      strokeThickness: 3,
+      fontStyle: 'bold'
+    }).setOrigin(0.5, 0.5).setDepth(10001)
+
+    // Pop-in animation for step number
+    stepIndicator.setScale(0)
+    this.tweens.add({
+      targets: stepIndicator,
+      scaleX: 1.2,
+      scaleY: 1.2,
+      duration: 300,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        // Gentle pulsing
+        this.tweens.add({
+          targets: stepIndicator,
+          scaleX: 1.4,
+          scaleY: 1.4,
+          duration: 500,
+          ease: 'Sine.easeInOut',
+          yoyo: true,
+          repeat: -1
+        })
+      }
+    })
+
+    // Create item glow effect
+    const itemGlow = this.add.graphics()
+    itemGlow.lineStyle(4, 0xFFD700, 0.8)
+    itemGlow.strokeCircle(item.x, item.y, 25)
+    itemGlow.setDepth(999)
+
+    // Pulsing glow animation
+    this.tweens.add({
+      targets: itemGlow,
+      scaleX: 1.3,
+      scaleY: 1.3,
+      alpha: 0.4,
+      duration: 600,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1
+    })
+
+    // Store hints for clearing
+    if (!this.activeHints) {
+      this.activeHints = []
+    }
+    this.activeHints.push(stepIndicator, itemGlow)
+
+    // Update hint message
+    const messages = [
+      '💡 First item to match!',
+      '💡 Second item to match!'
+    ]
+    this.showHintMessage(messages[stepNumber - 1])
+  }
+
+  // 🎯 Show where to find the third item
+  showThirdItemLocation(itemType, excludeRow, excludeCol) {
+    const rows = gameConfig.gridRows.value
+    const cols = gameConfig.gridCols.value
+
+    // Find first available item of this type
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        if (row === excludeRow && col === excludeCol) continue
+
+        const gridCell = this.gridData[row][col]
+        const itemIndex = gridCell.positions.findIndex(pos => pos === itemType)
+
+        if (itemIndex !== -1) {
+          const item = gridCell.items[itemIndex]
+
+          // Create arrow pointing to the item
+          const arrow = this.add.text(item.x, item.y - 40, '⬇️', {
+            fontSize: '32px'
+          }).setOrigin(0.5, 0.5).setDepth(10001)
+
+          // Bounce animation for arrow
+          this.tweens.add({
+            targets: arrow,
+            y: item.y - 50,
+            duration: 400,
+            ease: 'Sine.easeInOut',
+            yoyo: true,
+            repeat: -1
+          })
+
+          // Create glow around target item
+          const targetGlow = this.add.graphics()
+          targetGlow.lineStyle(6, 0x00FF00, 0.9) // Green glow for target
+          targetGlow.strokeCircle(item.x, item.y, 30)
+          targetGlow.setDepth(999)
+
+          // Strong pulsing for target
+          this.tweens.add({
+            targets: targetGlow,
+            scaleX: 1.5,
+            scaleY: 1.5,
+            alpha: 0.2,
+            duration: 500,
+            ease: 'Sine.easeInOut',
+            yoyo: true,
+            repeat: -1
+          })
+
+          // Store hints
+          if (!this.activeHints) {
+            this.activeHints = []
+          }
+          this.activeHints.push(arrow, targetGlow)
+
+          // Final hint message
+          this.showHintMessage(`💡 Move this ${itemType.replace('_', ' ')} here to complete the match!`)
+
+          return // Only show one target location
+        }
+      }
+    }
   }
 
   // 💬 Show hint message
