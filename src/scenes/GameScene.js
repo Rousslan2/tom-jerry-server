@@ -4147,6 +4147,11 @@ export class GameScene extends Phaser.Scene {
       this.time.delayedCall(1000, () => {
         this.checkAllCellsForMatches()
       })
+    } else {
+      // If no cascade happened, still check for matches in case items created new combinations
+      this.time.delayedCall(500, () => {
+        this.checkAllCellsForMatches()
+      })
     }
   }
 
