@@ -15,17 +15,17 @@ export class GameScene extends Phaser.Scene {
     // Game mode
     this.gameMode = 'single' // 'single' or 'online'
     this.isHost = false
-    
+
     // 🎮 NEW: Game mode type (classic, time_attack, endless, zen, rush)
     this.selectedGameMode = 'classic'
-    
+
     // 🎯 NOTE: Random targets will be generated AFTER gameMode is set in init()
-    
+
     // Game state
     this.gameOver = false
     this.levelComplete = false
     this.currentMoves = 0
-    
+
     // ⏱️ NEW: Timer for Time Attack mode
     this.gameTimer = null
     this.timeRemaining = 120 // 2 minutes in seconds
@@ -33,15 +33,18 @@ export class GameScene extends Phaser.Scene {
     // ⚡ NEW: Rush mode timer (starts at 30 seconds, gain time by playing fast!)
     this.rushTimeRemaining = 30 // Start with 30 seconds
     this.lastEliminationTime = 0 // Track time between eliminations
-    
+
+    // 🎪 Tom event flag to prevent multiple events
+    this.tomEventRunning = false
+
     // Grid system
     this.gridData = []
     this.gridSlots = []
-    
+
     // Drag system
     this.selectedItem = null
     this.isDragging = false
-    
+
     // ⭐ NEW: Score & Combo System
     this.score = 0
     this.combo = 0
@@ -52,7 +55,7 @@ export class GameScene extends Phaser.Scene {
     // 💡 Hint System - Limited to 3 hints per game
     this.hintsUsed = 0
     this.maxHints = 3
-    
+
     // Opponent stats (for online mode)
     this.opponentStats = {
       'milk_box': 0,
@@ -1496,39 +1499,27 @@ export class GameScene extends Phaser.Scene {
     const minDelay = gameConfig.tomEventFirstDelayMin.value * 1000
     const maxDelay = gameConfig.tomEventFirstDelayMax.value * 1000
     const initialDelay = Phaser.Math.Between(minDelay, maxDelay)
-    
+
     console.log(`🎪 First Tom event will happen in ${initialDelay / 1000} seconds`)
-    
+
     this.time.delayedCall(initialDelay, () => {
       this.triggerRandomTomEvent()
-      
-      // Then trigger Tom events at regular intervals (configurable)
-      const minInterval = gameConfig.tomEventIntervalMin.value * 1000
-      const maxInterval = gameConfig.tomEventIntervalMax.value * 1000
-      
-      this.tomEventTimer = this.time.addEvent({
-        delay: Phaser.Math.Between(minInterval, maxInterval),
-        callback: () => {
-          this.triggerRandomTomEvent()
-          // Randomize next event interval
-          this.tomEventTimer.delay = Phaser.Math.Between(minInterval, maxInterval)
-          console.log(`⏰ Next Tom event in ${this.tomEventTimer.delay / 1000} seconds`)
-        },
-        loop: true
-      })
     })
   }
   
   // 🎲 Trigger a random Tom event
   triggerRandomTomEvent() {
-    // Don't trigger events if game is over
-    if (this.gameOver || this.levelComplete) {
+    // Don't trigger events if game is over or if an event is already running
+    if (this.gameOver || this.levelComplete || this.tomEventRunning) {
       return
     }
-    
+
+    // Set flag to prevent multiple events
+    this.tomEventRunning = true
+
     // Random event selection with weighted probabilities
     const randomValue = Math.random() * 100
-    
+
     if (randomValue < 50) {
       // 50% - Tom & Jerry chase (most fun, non-disruptive)
       this.tomJerryChaseEvent()
@@ -1539,6 +1530,9 @@ export class GameScene extends Phaser.Scene {
       // 25% - Tom shakes screen
       this.tomShakesScreenEvent()
     }
+
+    // Keep flag set to prevent any more Tom events in this game
+    // Only one Tom event per game session
   }
   
   // 🏃 Event 1: Tom chases Jerry across the screen
