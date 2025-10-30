@@ -3385,16 +3385,19 @@ export class GameScene extends Phaser.Scene {
 
         // Count items by type in this slot (only non-obstacle items)
         const typeCounts = {}
+        let emptyPositions = 0
         gridCell.positions.forEach((itemType, index) => {
-          if (itemType && itemType !== 'anvil_obstacle' && itemType !== 'safe_obstacle' && itemType !== 'piano_obstacle') {
+          if (itemType === null) {
+            emptyPositions++
+          } else if (itemType && itemType !== 'anvil_obstacle' && itemType !== 'safe_obstacle' && itemType !== 'piano_obstacle') {
             typeCounts[itemType] = (typeCounts[itemType] || 0) + 1
           }
         })
 
-        // Check each item type with exactly 2 items
+        // Check each item type with exactly 2 items AND exactly 1 empty position
         for (let itemType in typeCounts) {
-          if (typeCounts[itemType] === 2) {
-            // Count how many of this item type are available elsewhere
+          if (typeCounts[itemType] === 2 && emptyPositions === 1) {
+            // Count how many of this item type are available elsewhere (excluding obstacles)
             const availableCount = this.countItemTypeAvailable(itemType, row, col)
 
             // Prioritize hints with more available items (easier to complete)
@@ -3434,7 +3437,7 @@ export class GameScene extends Phaser.Scene {
     this.savePlayerStats(stats)
   }
 
-  // 🔢 Count available items of a type (excluding a specific slot)
+  // 🔢 Count available items of a type (excluding a specific slot and obstacles)
   countItemTypeAvailable(itemType, excludeRow, excludeCol) {
     let count = 0
     const rows = gameConfig.gridRows.value
@@ -3446,7 +3449,10 @@ export class GameScene extends Phaser.Scene {
 
         const gridCell = this.gridData[row][col]
         gridCell.positions.forEach(pos => {
-          if (pos === itemType) count++
+          // Only count non-obstacle items that match the type
+          if (pos === itemType && pos !== 'anvil_obstacle' && pos !== 'safe_obstacle' && pos !== 'piano_obstacle') {
+            count++
+          }
         })
       }
     }
@@ -3609,7 +3615,7 @@ export class GameScene extends Phaser.Scene {
     const rows = gameConfig.gridRows.value
     const cols = gameConfig.gridCols.value
 
-    // Find first available item of this type
+    // Find first available MOVABLE item of this type (exclude obstacles)
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         if (row === excludeRow && col === excludeCol) continue
@@ -3622,6 +3628,11 @@ export class GameScene extends Phaser.Scene {
 
           // Safety check - ensure item exists and has position properties
           if (!item || !item.x || !item.y) {
+            continue
+          }
+
+          // Skip obstacles - they cannot be moved
+          if (item.itemType === 'anvil_obstacle' || item.itemType === 'safe_obstacle' || item.itemType === 'piano_obstacle') {
             continue
           }
 
