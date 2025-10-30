@@ -306,15 +306,9 @@ export class PlayerProfileScene extends Phaser.Scene {
   }
 
   playBackgroundMusic() {
-    if (this.backgroundMusic && this.backgroundMusic.isPlaying) {
-      return
-    }
-
-    this.backgroundMusic = this.sound.add('tom_jerry_80s_retro_theme', {
-      volume: audioConfig.musicVolume.value * 0.5, // Quieter for profile screen
-      loop: true
-    })
-    this.backgroundMusic.play()
+    // Don't play music in profile scene - let it be silent for better focus on stats
+    // This prevents double music playback
+    return
   }
 
   shutdown() {
