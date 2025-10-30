@@ -15,7 +15,7 @@ export class GameScene extends Phaser.Scene {
     this.gameMode = 'single' // 'single' or 'online'
     this.isHost = false
     
-    // 🎮 NEW: Game mode type (classic, time_attack, endless, zen)
+    // 🎮 NEW: Game mode type (classic, time_attack, endless, zen, cascade)
     this.selectedGameMode = 'classic'
     
     // 🎯 NOTE: Random targets will be generated AFTER gameMode is set in init()
@@ -702,6 +702,12 @@ export class GameScene extends Phaser.Scene {
       return
     }
 
+    // 🎮 For Cascade mode, show special description
+    if (this.selectedGameMode === 'cascade') {
+      this.targetText.setText('🌊 CASCADE MODE - CHAIN REACTIONS! 🌊')
+      return
+    }
+
     // Cute target background - cream yellow gradient background
     this.targetBg = this.add.graphics()
     this.targetBg.fillGradientStyle(0xFFFACD, 0xFFFACD, 0xF5DEB3, 0xF5DEB3, 0.95)  // Cream yellow gradient
@@ -767,18 +773,21 @@ export class GameScene extends Phaser.Scene {
   createMoveCounter() {
     const screenWidth = this.cameras.main.width
     
-    // 🎮 For Endless/Zen mode, show different UI
-    if (this.selectedGameMode === 'endless' || this.selectedGameMode === 'zen') {
+    // 🎮 For Endless/Zen/Cascade mode, show different UI
+    if (this.selectedGameMode === 'endless' || this.selectedGameMode === 'zen' || this.selectedGameMode === 'cascade') {
       // Show move count without limit
       this.moveCounterBg = this.add.graphics()
       this.moveCounterBg.fillGradientStyle(0x9370DB, 0x9370DB, 0xBA55D3, 0xBA55D3, 0.95)
       this.moveCounterBg.fillRoundedRect(screenWidth * 0.65, 20, screenWidth * 0.3, 60, 15)
-      
+
       this.moveCounterBg.lineStyle(3, 0xFFFFFF, 0.9)
       this.moveCounterBg.strokeRoundedRect(screenWidth * 0.65, 20, screenWidth * 0.3, 60, 15)
       this.moveCounterBg.setDepth(2000)
-      
-      const modeIcon = this.selectedGameMode === 'endless' ? '♾️' : '🏆'
+
+      let modeIcon = '♾️'
+      if (this.selectedGameMode === 'zen') modeIcon = '🏆'
+      if (this.selectedGameMode === 'cascade') modeIcon = '🌊'
+
       this.moveCounterText = this.add.text(screenWidth * 0.8, 50, `${modeIcon} Moves: ${this.currentMoves}`, {
         fontSize: `${window.getResponsiveFontSize(18)}px`,
         fontFamily: window.getGameFont(),
@@ -2803,6 +2812,13 @@ export class GameScene extends Phaser.Scene {
 
     // Check game end conditions after each target display update
     this.checkGameEnd()
+
+    // 🌊 CASCADE MODE: After elimination, trigger cascade effect
+    if (this.selectedGameMode === 'cascade') {
+      this.time.delayedCall(500, () => {
+        this.triggerCascadeEffect(row, col)
+      })
+    }
   }
 
   setupMultiplayerSync() {
@@ -3592,8 +3608,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   checkGameEnd() {
-    // 🎮 Endless/Zen mode - no game over conditions, no victory conditions either!
-    if (this.selectedGameMode === 'endless' || this.selectedGameMode === 'zen') {
+    // 🎮 Endless/Zen/Cascade mode - no game over conditions, no victory conditions either!
+    if (this.selectedGameMode === 'endless' || this.selectedGameMode === 'zen' || this.selectedGameMode === 'cascade') {
       // Pure relaxation mode - no win/lose conditions
       // Just keep playing forever!
       return
@@ -3987,6 +4003,9 @@ export class GameScene extends Phaser.Scene {
     } else if (modeKey === 'endless') {
       stats.endlessGamesPlayed++
       if (isVictory) stats.endlessGamesWon++
+    } else if (modeKey === 'cascade') {
+      stats.cascadeGamesPlayed++
+      if (isVictory) stats.cascadeGamesWon++
     } else if (modeKey === 'zen') {
       stats.zenGamesPlayed++
       if (isVictory) stats.zenGamesWon++
@@ -4036,7 +4055,9 @@ export class GameScene extends Phaser.Scene {
       endlessGamesPlayed: 0,
       endlessGamesWon: 0,
       zenGamesPlayed: 0,
-      zenGamesWon: 0
+      zenGamesWon: 0,
+      cascadeGamesPlayed: 0,
+      cascadeGamesWon: 0
     }
 
     const savedStats = localStorage.getItem('playerStats')
@@ -4060,6 +4081,81 @@ export class GameScene extends Phaser.Scene {
       console.log('📊 Player stats saved:', stats)
     } catch (error) {
       console.warn('Failed to save player stats:', error)
+    }
+  }
+
+  // 🌊 CASCADE MODE: Trigger cascade effect after elimination
+  triggerCascadeEffect(row, col) {
+    console.log('🌊 Triggering cascade effect at:', row, col)
+
+    const rows = gameConfig.gridRows.value
+    const cols = gameConfig.gridCols.value
+    let cascadeTriggered = false
+
+    // Check all slots for items that can fall
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const gridCell = this.gridData[r][c]
+
+        // Check each position in the slot
+        for (let pos = 0; pos < 3; pos++) {
+          if (gridCell.positions[pos] !== null) {
+            // Check if there's empty space below this item
+            if (this.canItemFall(r, c, pos)) {
+              this.makeItemFall(r, c, pos)
+              cascadeTriggered = true
+            }
+          }
+        }
+      }
+    }
+
+    if (cascadeTriggered) {
+      console.log('🌊 Cascade effect triggered - items falling!')
+      // Play cascade sound
+      this.sound.play('item_drop', { volume: audioConfig.sfxVolume.value * 0.8 })
+
+      // After cascade animation, check for new matches
+      this.time.delayedCall(1000, () => {
+        this.checkAllCellsForMatches()
+      })
+    }
+  }
+
+  // 🌊 Check if an item can fall (has empty space below)
+  canItemFall(row, col, position) {
+    // Items fall downward in the grid
+    if (row >= gameConfig.gridRows.value - 1) return false // Already at bottom
+
+    const belowCell = this.gridData[row + 1][col]
+    // Check if there's an empty position below
+    return belowCell.positions.some(pos => pos === null)
+  }
+
+  // 🌊 Make an item fall to the slot below
+  makeItemFall(fromRow, fromCol, fromPosition) {
+    const item = this.gridData[fromRow][fromCol].items[fromPosition]
+    if (!item) return
+
+    // Find empty position in the slot below
+    const belowCell = this.gridData[fromRow + 1][fromCol]
+    const emptyPos = belowCell.positions.findIndex(pos => pos === null)
+
+    if (emptyPos !== -1) {
+      // Move item to new position
+      this.moveItemToPosition(item, fromRow + 1, fromCol, emptyPos)
+
+      // Animate falling
+      this.tweens.add({
+        targets: item,
+        y: item.y + this.gridSlots[fromRow + 1][fromCol].height / 3, // Fall distance
+        duration: 300,
+        ease: 'Power2',
+        onComplete: () => {
+          // Check if this creates a new match
+          this.checkForElimination(fromRow + 1, fromCol)
+        }
+      })
     }
   }
 }

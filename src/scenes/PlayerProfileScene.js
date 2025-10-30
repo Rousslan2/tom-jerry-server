@@ -152,6 +152,7 @@ export class PlayerProfileScene extends Phaser.Scene {
     const modeStats = [
       { label: 'Classic Mode:', value: `${this.playerStats.classicGamesWon}/${this.playerStats.classicGamesPlayed}` },
       { label: 'Time Attack:', value: `${this.playerStats.timeAttackGamesWon}/${this.playerStats.timeAttackGamesPlayed}` },
+      { label: 'Cascade Mode:', value: `${this.playerStats.cascadeGamesWon}/${this.playerStats.cascadeGamesPlayed}` },
       { label: 'Zen Mode:', value: `${this.playerStats.zenGamesWon}/${this.playerStats.zenGamesPlayed}` }
     ]
 
@@ -257,7 +258,9 @@ export class PlayerProfileScene extends Phaser.Scene {
       endlessGamesPlayed: 0,
       endlessGamesWon: 0,
       zenGamesPlayed: 0,
-      zenGamesWon: 0
+      zenGamesWon: 0,
+      cascadeGamesPlayed: 0,
+      cascadeGamesWon: 0
     }
 
     const savedStats = localStorage.getItem('playerStats')

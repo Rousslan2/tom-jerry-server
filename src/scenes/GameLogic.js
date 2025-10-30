@@ -9,7 +9,7 @@ export class GameLogic {
 
   initializeGameState() {
     this.gameMode = 'single'
-    this.selectedGameMode = 'classic'
+    this.selectedGameMode = 'classic' // Can be 'classic', 'time_attack', 'endless', 'zen', 'cascade'
     this.gameOver = false
     this.levelComplete = false
     this.currentMoves = 0
@@ -389,7 +389,7 @@ export class GameLogic {
 
   // Check game end conditions
   checkGameEnd() {
-    if (this.selectedGameMode === 'endless' || this.selectedGameMode === 'zen') {
+    if (this.selectedGameMode === 'endless' || this.selectedGameMode === 'zen' || this.selectedGameMode === 'cascade') {
       const target1Met = this.eliminatedCounts[this.levelTargets[0].type] >= this.levelTargets[0].count
       const target2Met = this.eliminatedCounts[this.levelTargets[1].type] >= this.levelTargets[1].count
       const target3Met = this.eliminatedCounts[this.levelTargets[2].type] >= this.levelTargets[2].count
@@ -513,5 +513,91 @@ export class GameLogic {
       this.comboTimer.remove()
       this.comboTimer = null
     }
+  }
+
+  // 🌊 CASCADE MODE: Enhanced elimination with cascade effects
+  eliminateItemsCascade(row, col, itemType) {
+    const gridCell = this.gridData[row][col]
+
+    // Prevent double elimination
+    if (gridCell.isEliminating) return
+    gridCell.isEliminating = true
+
+    // Calculate score with combo
+    const currentTime = this.scene.time.now
+    const timeSinceLastElimination = currentTime - this.lastEliminationTime
+
+    if (timeSinceLastElimination < this.comboResetDelay && this.combo > 0) {
+      this.combo++
+    } else {
+      this.combo = 1
+    }
+
+    this.lastEliminationTime = currentTime
+
+    // Clear combo timer and create new one
+    if (this.comboTimer) {
+      this.comboTimer.remove()
+    }
+
+    this.comboTimer = this.scene.time.delayedCall(this.comboResetDelay, () => {
+      this.combo = 0
+    })
+
+    // Enhanced scoring for cascade mode - bonus points for chain reactions
+    const basePoints = 150 // Higher base points for cascade mode
+    const cascadeBonus = this.combo * 50 // Extra bonus for combos in cascade
+    const earnedPoints = basePoints * this.combo + cascadeBonus
+    this.score += earnedPoints
+
+    // Update elimination count
+    const amountToAdd = gameConfig.maxItemsPerSlot.value
+    this.eliminatedCounts[itemType] = (this.eliminatedCounts[itemType] || 0) + amountToAdd
+
+    // Clear slot
+    gridCell.positions = [null, null, null]
+    gridCell.items.forEach(item => item.destroy())
+    gridCell.items = []
+
+    // Reset eliminating flag
+    this.scene.time.delayedCall(100, () => {
+      gridCell.isEliminating = false
+    })
+
+    // Refill slot with cascade-aware logic
+    this.scene.time.delayedCall(gameConfig.refillDelay.value, () => {
+      this.refillSlotCascade(row, col)
+    })
+
+    return { earnedPoints, combo: this.combo }
+  }
+
+  // 🌊 CASCADE MODE: Special refill that considers falling items
+  refillSlotCascade(row, col) {
+    const itemCount = 3
+    const targetTypes = this.levelTargets.map(t => t.type)
+    const incompleteTargets = targetTypes.filter(itemType => {
+      const target = this.levelTargets.find(t => t.type === itemType)
+      return target && this.eliminatedCounts[itemType] < target.count
+    })
+
+    for (let i = 0; i < itemCount; i++) {
+      let itemType
+
+      if (incompleteTargets.length > 0 && Math.random() < gameConfig.targetItemSpawnChanceRefill.value / 100) {
+        itemType = incompleteTargets[Phaser.Math.Between(0, incompleteTargets.length - 1)]
+      } else {
+        itemType = this.getRandomItemType()
+      }
+
+      this.addItemToSlot(row, col, itemType)
+    }
+
+    // After refilling, trigger cascade check
+    this.scene.time.delayedCall(200, () => {
+      if (!this.scene.gameOver && !this.scene.levelComplete) {
+        this.scene.triggerCascadeEffect(row, col)
+      }
+    })
   }
 }
