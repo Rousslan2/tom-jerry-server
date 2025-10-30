@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { screenSize, audioConfig } from '../gameConfig.json'
 import { multiplayerService } from '../services/MultiplayerService.js'
+import { AnimationManager } from '../utils/AnimationManager.js'
 
 export class GameOverScene extends Phaser.Scene {
   constructor() {
@@ -23,6 +24,9 @@ export class GameOverScene extends Phaser.Scene {
     const screenWidth = screenSize.width.value
     const screenHeight = screenSize.height.value
 
+    // 🎬 Initialize Animation Manager!
+    this.animManager = new AnimationManager(this)
+
     // 👀 UPDATE STATS: Increment losses for online mode
     if (this.gameMode === 'online') {
       this.updateOnlineStats('loss')
@@ -33,6 +37,9 @@ export class GameOverScene extends Phaser.Scene {
 
     // Create centered Game Over panel
     this.createGameOverPanel()
+
+    // 🎬 Add Tom catching Jerry animation!
+    this.createTomCatchAnimation()
 
     this.setupInputs()
   }
@@ -335,6 +342,82 @@ export class GameOverScene extends Phaser.Scene {
   }
 
 
+
+  createTomCatchAnimation() {
+    const screenWidth = screenSize.width.value
+    const screenHeight = screenSize.height.value
+
+    // 🎬 Create Tom holding a sack at bottom of screen
+    const tom = this.animManager.createAnimatedSprite(
+      screenWidth / 2,
+      screenHeight - 80,
+      'tom_carrying_sack',
+      'tom_carry',
+      0.22
+    )
+    tom.setDepth(400)
+
+    // 🐱 Tom sways side to side victoriously
+    this.tweens.add({
+      targets: tom,
+      x: screenWidth / 2 + 20,
+      duration: 1200,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1
+    })
+
+    // 🐱 Tom bounces slightly
+    this.tweens.add({
+      targets: tom,
+      y: screenHeight - 90,
+      duration: 800,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1
+    })
+
+    // 💥 Add "struggle" effects from sack (Jerry trying to escape!)
+    this.time.addEvent({
+      delay: 1500,
+      callback: () => {
+        // Sack shakes
+        this.tweens.add({
+          targets: tom,
+          angle: { from: -3, to: 3 },
+          duration: 100,
+          ease: 'Sine.easeInOut',
+          yoyo: true,
+          repeat: 3
+        })
+
+        // Add impact stars
+        for (let i = 0; i < 3; i++) {
+          const star = this.add.text(
+            tom.x + Phaser.Math.Between(-20, 20),
+            tom.y - 40 + Phaser.Math.Between(-10, 10),
+            ['⭐', '💫', '💥'][i],
+            {
+              fontSize: '20px',
+              color: '#FFD700'
+            }
+          ).setOrigin(0.5, 0.5).setDepth(399)
+
+          this.tweens.add({
+            targets: star,
+            y: star.y - 30,
+            alpha: 0,
+            rotation: Math.PI,
+            duration: 800,
+            ease: 'Cubic.easeOut',
+            delay: i * 100,
+            onComplete: () => star.destroy()
+          })
+        }
+      },
+      loop: true
+    })
+  }
 
   setupInputs() {
     // 🎮 MODIFICATION: Ne pas écouter les touches en mode online

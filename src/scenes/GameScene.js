@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { screenSize, gameConfig, levelConfig, audioConfig } from '../gameConfig.json'
 import { multiplayerService } from '../services/MultiplayerService.js'
 import { MobileEnhancements } from '../utils/MobileEnhancements.js'
+import { AnimationManager } from '../utils/AnimationManager.js'
 
 export class GameScene extends Phaser.Scene {
   constructor() {
@@ -164,6 +165,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
+    // 🎬 Initialize Animation Manager FIRST!
+    this.animManager = new AnimationManager(this)
+    console.log('✅ AnimationManager initialized!')
+    
     // 🎵 Stop ALL other scene music to prevent overlap!
     this.stopAllOtherMusic()
     
@@ -1503,10 +1508,9 @@ export class GameScene extends Phaser.Scene {
     // Random vertical position
     const yPosition = Phaser.Math.Between(screenHeight * 0.3, screenHeight * 0.7)
     
-    // Jerry runs first
-    const jerry = this.add.image(-150, yPosition, 'jerry_running_scared')
-      .setDepth(10000)
-      .setScale(0.15)
+    // 🎬 Create Jerry with animation!
+    const jerry = this.animManager.createAnimatedSprite(-150, yPosition, 'jerry_running_scared', 'jerry_run', 0.15)
+    jerry.setDepth(10000)
     
     // Apply high quality rendering
     this.applyHighQualityRendering(jerry)
@@ -1525,9 +1529,9 @@ export class GameScene extends Phaser.Scene {
     
     // Tom chases 400ms later
     this.time.delayedCall(400, () => {
-      const tom = this.add.image(-150, yPosition, 'tom_chasing_jerry')
-        .setDepth(10000)
-        .setScale(0.15)
+      // 🎬 Create Tom with animation!
+      const tom = this.animManager.createAnimatedSprite(-150, yPosition, 'tom_chasing_jerry', 'tom_chase', 0.15)
+      tom.setDepth(10000)
       
       // Apply high quality rendering
       this.applyHighQualityRendering(tom)
@@ -1580,10 +1584,9 @@ export class GameScene extends Phaser.Scene {
     
     const screenWidth = this.cameras.main.width
     
-    // Tom appears at top with sack
-    const tom = this.add.image(screenWidth / 2, -150, 'tom_carrying_sack')
-      .setDepth(10000)
-      .setScale(0.2)
+    // 🎬 Tom appears at top with sack (with animation!)
+    const tom = this.animManager.createAnimatedSprite(screenWidth / 2, -150, 'tom_carrying_sack', 'tom_carry', 0.2)
+    tom.setDepth(10000)
     
     // Apply high quality rendering
     this.applyHighQualityRendering(tom)
@@ -1603,8 +1606,8 @@ export class GameScene extends Phaser.Scene {
     
     // Tom trips and falls after 1.5 seconds
     this.time.delayedCall(1500, () => {
-      // Change to tripping sprite
-      tom.setTexture('tom_tripping')
+      // 🎬 Play tripping animation!
+      this.animManager.playAnimation(tom, 'tom_trip')
       tom.setRotation(-0.3)
       
       // Tom falls out of screen
@@ -1704,10 +1707,9 @@ export class GameScene extends Phaser.Scene {
     
     const screenWidth = this.cameras.main.width
     
-    // Tom appears at top with hammer
-    const tom = this.add.image(screenWidth * 0.8, -150, 'tom_with_hammer')
-      .setDepth(10000)
-      .setScale(0.18)
+    // 🎬 Tom appears at top with hammer (with animation!)
+    const tom = this.animManager.createAnimatedSprite(screenWidth * 0.8, -150, 'tom_with_hammer', 'tom_hammer', 0.18)
+    tom.setDepth(10000)
     
     // Apply high quality rendering
     this.applyHighQualityRendering(tom)
@@ -2441,31 +2443,10 @@ export class GameScene extends Phaser.Scene {
     // Create cartoon-style elimination effect with combo display
     this.createCartoonEliminationEffect(slot.x, slot.y, itemType, earnedPoints)
     
-    // Cartoon-style item elimination animation
+    // 🎬 Use AnimationManager for smooth elimination animations
     gridCell.items.forEach((item, index) => {
-      // First bounce and enlarge
-      this.tweens.add({
-        targets: item,
-        scaleX: item.scaleX * 1.5,
-        scaleY: item.scaleY * 1.5,
-        duration: 150,
-        ease: 'Back.easeOut',
-        yoyo: true,
-        onComplete: () => {
-          // Then rotate and disappear
-          this.tweens.add({
-            targets: item,
-            rotation: Math.PI * 2,
-            alpha: 0,
-            scale: 0,
-            duration: 400,
-            ease: 'Back.easeIn',
-            delay: index * 50,  // Stagger time
-            onComplete: () => {
-              item.destroy()
-            }
-          })
-        }
+      this.time.delayedCall(index * 50, () => {
+        this.animManager.animateItemEliminate(item)
       })
     })
 

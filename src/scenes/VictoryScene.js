@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { screenSize, audioConfig } from '../gameConfig.json'
 import { multiplayerService } from '../services/MultiplayerService.js'
+import { AnimationManager } from '../utils/AnimationManager.js'
 
 export class VictoryScene extends Phaser.Scene {
   constructor() {
@@ -24,6 +25,9 @@ export class VictoryScene extends Phaser.Scene {
     const screenWidth = screenSize.width.value
     const screenHeight = screenSize.height.value
 
+    // 🎬 Initialize Animation Manager!
+    this.animManager = new AnimationManager(this)
+
     // 🏆 UPDATE STATS: Increment wins for online mode
     if (this.gameMode === 'online') {
       this.updateOnlineStats('win')
@@ -34,6 +38,9 @@ export class VictoryScene extends Phaser.Scene {
 
     // Create Tom and Jerry style victory panel
     this.createVictoryPanel()
+
+    // 🎬 Add Jerry celebration animation!
+    this.createJerryCelebration()
 
     this.setupInputs()
   }
@@ -389,6 +396,70 @@ export class VictoryScene extends Phaser.Scene {
         ease: 'Back.easeOut'
       })
       this.goToMainMenu()
+    })
+  }
+
+  createJerryCelebration() {
+    const screenWidth = screenSize.width.value
+    const screenHeight = screenSize.height.value
+
+    // 🎬 Create celebrating Jerry at bottom of screen
+    const jerry = this.animManager.createAnimatedSprite(
+      screenWidth / 2,
+      screenHeight - 100,
+      'jerry_head',
+      'jerry_idle',
+      0.25
+    )
+    jerry.setDepth(400)
+
+    // 🎉 Jerry jumps for joy!
+    this.tweens.add({
+      targets: jerry,
+      y: screenHeight - 150,
+      scaleX: 0.28,
+      scaleY: 0.28,
+      duration: 400,
+      ease: 'Back.easeOut',
+      yoyo: true,
+      repeat: -1,
+      repeatDelay: 600
+    })
+
+    // 🎉 Jerry rotates slightly
+    this.tweens.add({
+      targets: jerry,
+      angle: { from: -5, to: 5 },
+      duration: 800,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1
+    })
+
+    // ✨ Add sparkles around Jerry
+    this.time.addEvent({
+      delay: 500,
+      callback: () => {
+        const sparkle = this.add.text(
+          jerry.x + Phaser.Math.Between(-30, 30),
+          jerry.y + Phaser.Math.Between(-30, 30),
+          ['✨', '🌟', '💫'][Phaser.Math.Between(0, 2)],
+          {
+            fontSize: '24px',
+            color: '#FFD700'
+          }
+        ).setOrigin(0.5, 0.5).setDepth(399)
+
+        this.tweens.add({
+          targets: sparkle,
+          y: sparkle.y - 40,
+          alpha: 0,
+          duration: 1000,
+          ease: 'Cubic.easeOut',
+          onComplete: () => sparkle.destroy()
+        })
+      },
+      loop: true
     })
   }
 
