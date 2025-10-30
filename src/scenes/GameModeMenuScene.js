@@ -12,6 +12,8 @@ export class GameModeMenuScene extends Phaser.Scene {
 
   create() {
     this.isMobile = window.isMobileDevice || false
+    this.lastMode = localStorage.getItem('lastGameMode') || null
+    this.recommendedMode = this.detectRecommendedMode()
     
     this.createBackground()
     this.createUI()
@@ -61,11 +63,15 @@ export class GameModeMenuScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5, 0.5).setDepth(1000)
     
-    // Mode buttons
-    this.createModeButton('🏃 CLASSIC MODE', 'Complete objectives in 50 moves!', screenHeight * 0.25, 'classic', 0x4169E1)
-    this.createModeButton('⏱️ TIME ATTACK', 'Race against time! 2 minutes!', screenHeight * 0.40, 'time_attack', 0xFF6347)
-    this.createModeButton('♾️ ENDLESS MODE', 'No limits! Score as much as you can!', screenHeight * 0.55, 'endless', 0x9370DB)
-    this.createModeButton('🏆 ZEN MODE', 'Relax! No moves/time limit!', screenHeight * 0.70, 'zen', 0x32CD32)
+    // Mode buttons (store for badges)
+    this.modeButtons = {}
+    this.modeButtons.classic = this.createModeButton('🏃 CLASSIC MODE', 'Complete objectives in 50 moves!', screenHeight * 0.25, 'classic', 0x4169E1)
+    this.modeButtons.time_attack = this.createModeButton('⏱️ TIME ATTACK', 'Race against time! 2 minutes!', screenHeight * 0.40, 'time_attack', 0xFF6347)
+    this.modeButtons.endless = this.createModeButton('♾️ ENDLESS MODE', 'No limits! Score as much as you can!', screenHeight * 0.55, 'endless', 0x9370DB)
+    this.modeButtons.zen = this.createModeButton('🏆 ZEN MODE', 'Relax! No moves/time limit!', screenHeight * 0.70, 'zen', 0x32CD32)
+    
+    // Badges for last selected and recommended
+    this.applyModeBadges()
     
     // Back button
     this.createBackButton()
@@ -107,6 +113,16 @@ export class GameModeMenuScene extends Phaser.Scene {
       strokeThickness: this.isMobile ? 3 : 2,
       align: 'center'
     }).setOrigin(0.5, 0.5).setDepth(200)
+    
+    // Badge container
+    const badgeText = this.add.text(screenWidth / 2 + 300 - 70, y - 35, '', {
+      fontSize: `${window.getResponsiveFontSize(12)}px`,
+      fontFamily: window.getGameFont(),
+      color: '#FFFFFF',
+      stroke: '#000000',
+      strokeThickness: 3,
+      align: 'center'
+    }).setOrigin(1, 0).setDepth(250)
     
     // Interactions
     buttonZone.on('pointerover', () => {
@@ -153,8 +169,12 @@ export class GameModeMenuScene extends Phaser.Scene {
       this.sound.play('ui_click', { volume: audioConfig.sfxVolume.value })
       
       // Start game with selected mode
-      this.scene.start('GameScene', { mode: 'single', gameMode: mode })
+      const safeMode = this.sanitizeMode(mode)
+      try { localStorage.setItem('lastGameMode', safeMode) } catch (e) {}
+      this.scene.start('GameScene', { mode: 'single', gameMode: safeMode })
     })
+    
+    return { bg: buttonBg, zone: buttonZone, title: buttonText, desc: buttonDesc, badge: badgeText, mode }
   }
 
   createBackButton() {
@@ -233,5 +253,60 @@ export class GameModeMenuScene extends Phaser.Scene {
       this.sound.play('ui_click', { volume: audioConfig.sfxVolume.value })
       this.scene.start('ModeSelectionScene')
     })
+    
+    // Quick keyboard shortcuts for modes
+    this.oneKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ONE)
+    this.twoKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.TWO)
+    this.threeKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.THREE)
+    this.fourKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.FOUR)
+    
+    this.oneKey.on('down', () => this.launchMode('classic'))
+    this.twoKey.on('down', () => this.launchMode('time_attack'))
+    this.threeKey.on('down', () => this.launchMode('endless'))
+    this.fourKey.on('down', () => this.launchMode('zen'))
+  }
+
+  applyModeBadges() {
+    // Last selected badge
+    if (this.lastMode && this.modeButtons[this.lastMode]) {
+      const btn = this.modeButtons[this.lastMode]
+      btn.badge.setText('LAST PLAYED')
+    }
+    // Recommended badge
+    if (this.recommendedMode && this.modeButtons[this.recommendedMode]) {
+      const btn = this.modeButtons[this.recommendedMode]
+      const current = btn.badge.text
+      btn.badge.setText(current ? current + ' | RECOMMENDED' : 'RECOMMENDED')
+    }
+  }
+
+  detectRecommendedMode() {
+    try {
+      const dpr = Math.min(window.devicePixelRatio || 1, 3)
+      const width = window.innerWidth
+      const height = window.innerHeight
+      const isSmallScreen = Math.min(width, height) < 720
+      const isHighDpr = dpr > 2
+      
+      if (this.isMobile && (isSmallScreen || isHighDpr)) {
+        return 'zen' // le plus doux pour devices modestes
+      }
+      // Desktop ou mobile correct -> classic par défaut
+      return 'classic'
+    } catch (e) {
+      return 'classic'
+    }
+  }
+
+  sanitizeMode(mode) {
+    const allowed = { classic: true, time_attack: true, endless: true, zen: true }
+    return allowed[mode] ? mode : 'classic'
+  }
+
+  launchMode(mode) {
+    const safeMode = this.sanitizeMode(mode)
+    try { localStorage.setItem('lastGameMode', safeMode) } catch (e) {}
+    this.sound.play('ui_click', { volume: audioConfig.sfxVolume.value })
+    this.scene.start('GameScene', { mode: 'single', gameMode: safeMode })
   }
 }

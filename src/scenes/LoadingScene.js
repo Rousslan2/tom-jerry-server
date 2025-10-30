@@ -21,6 +21,14 @@ export class LoadingScene extends Phaser.Scene {
       // Do not update UI directly here; a smoother loop will lerp displayProgress
     })
     this.load.on('complete', this.onRealLoadComplete, this)
+    this.load.on('loaderror', (file) => {
+      console.warn('❌ Asset load error:', file?.src || file)
+      this.loadErrors = (this.loadErrors || 0) + 1
+      // If too many errors, fall back to force-complete
+      if (this.loadErrors >= 3) {
+        this.forceCompleteLoading('too_many_errors')
+      }
+    })
     
     // Ensure loading progress starts displaying from 0
     this.actualProgress = 0
@@ -29,6 +37,14 @@ export class LoadingScene extends Phaser.Scene {
     
     // Load asset pack by type
     this.load.pack('assetPack', 'assets/asset-pack.json')
+
+    // Watchdog: if loading hangs, force completion after 10s
+    this.watchdog = this.time.delayedCall(10000, () => {
+      if (!this.loadingComplete) {
+        console.warn('⏱️ Loading watchdog triggered — forcing completion')
+        this.forceCompleteLoading('watchdog_timeout')
+      }
+    })
   }
 
   create() {
@@ -389,11 +405,26 @@ export class LoadingScene extends Phaser.Scene {
     })
   }
 
+  forceCompleteLoading(reason = 'manual') {
+    this.loadingComplete = true
+    this.actualProgress = 1
+    // If smooth loop exists, let it complete naturally; otherwise, finish now
+    if (!this.progressSmoothEvent) {
+      this.displayProgress = 1
+      this.updateProgressBar(1)
+      this.loadComplete()
+    }
+  }
+
   shutdown() {
     // Cleanup timers/tweens to avoid leaks across scene transitions
     if (this.progressSmoothEvent) {
       this.progressSmoothEvent.remove()
       this.progressSmoothEvent = null
+    }
+    if (this.watchdog) {
+      this.watchdog.remove()
+      this.watchdog = null
     }
     if (this.tipTimer) {
       this.tipTimer.remove()
