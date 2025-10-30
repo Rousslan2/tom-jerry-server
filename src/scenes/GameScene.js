@@ -3496,22 +3496,22 @@ export class GameScene extends Phaser.Scene {
     // Step 1: Highlight the slot first
     this.highlightHintSlot(slotRow, slotCol, itemType)
 
-    // Step 2: After slot highlight, highlight first item
-    this.time.delayedCall(1000, () => {
+    // Step 2: After slot highlight, highlight first item (reduced delay)
+    this.time.delayedCall(600, () => {
       if (this.activeHints && this.activeHints.length > 0) {
         this.highlightHintItem(targetItems[0], 1)
       }
     })
 
-    // Step 3: After first item, highlight second item
-    this.time.delayedCall(2000, () => {
+    // Step 3: After first item, highlight second item (reduced delay)
+    this.time.delayedCall(1200, () => {
       if (this.activeHints && this.activeHints.length > 0) {
         this.highlightHintItem(targetItems[1], 2)
       }
     })
 
-    // Step 4: Show where to find the third item
-    this.time.delayedCall(3000, () => {
+    // Step 4: Show where to find the third item (reduced delay)
+    this.time.delayedCall(1800, () => {
       if (this.activeHints && this.activeHints.length > 0) {
         this.showThirdItemLocation(itemType, slotRow, slotCol)
       }
@@ -3534,16 +3534,16 @@ export class GameScene extends Phaser.Scene {
     )
     hintGlow.setDepth(100)
 
-    // Pulsing animation
+    // Pulsing animation (reduced duration)
     this.tweens.add({
       targets: hintGlow,
       alpha: 0.3,
       scaleX: 1.05,
       scaleY: 1.05,
-      duration: 800,
+      duration: 400,
       ease: 'Sine.easeInOut',
       yoyo: true,
-      repeat: 3,
+      repeat: 1,
       onComplete: () => {
         hintGlow.destroy()
       }
@@ -3574,24 +3574,24 @@ export class GameScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5, 0.5).setDepth(10001)
 
-    // Pop-in animation for step number
+    // Pop-in animation for step number (reduced duration)
     stepIndicator.setScale(0)
     this.tweens.add({
       targets: stepIndicator,
       scaleX: 1.2,
       scaleY: 1.2,
-      duration: 300,
+      duration: 200,
       ease: 'Back.easeOut',
       onComplete: () => {
-        // Gentle pulsing
+        // Gentle pulsing (reduced duration)
         this.tweens.add({
           targets: stepIndicator,
-          scaleX: 1.4,
-          scaleY: 1.4,
-          duration: 500,
+          scaleX: 1.3,
+          scaleY: 1.3,
+          duration: 300,
           ease: 'Sine.easeInOut',
           yoyo: true,
-          repeat: -1
+          repeat: 2
         })
       }
     })
@@ -3602,16 +3602,16 @@ export class GameScene extends Phaser.Scene {
     itemGlow.strokeCircle(item.x, item.y, 25)
     itemGlow.setDepth(999)
 
-    // Pulsing glow animation
+    // Pulsing glow animation (reduced duration)
     this.tweens.add({
       targets: itemGlow,
-      scaleX: 1.3,
-      scaleY: 1.3,
+      scaleX: 1.2,
+      scaleY: 1.2,
       alpha: 0.4,
-      duration: 600,
+      duration: 400,
       ease: 'Sine.easeInOut',
       yoyo: true,
-      repeat: -1
+      repeat: 2
     })
 
     // Store hints for clearing
@@ -3649,14 +3649,14 @@ export class GameScene extends Phaser.Scene {
             fontSize: '32px'
           }).setOrigin(0.5, 0.5).setDepth(10001)
 
-          // Bounce animation for arrow
+          // Bounce animation for arrow (reduced duration)
           this.tweens.add({
             targets: arrow,
             y: item.y - 50,
-            duration: 400,
+            duration: 300,
             ease: 'Sine.easeInOut',
             yoyo: true,
-            repeat: -1
+            repeat: 3
           })
 
           // Create glow around target item
@@ -3665,16 +3665,16 @@ export class GameScene extends Phaser.Scene {
           targetGlow.strokeCircle(item.x, item.y, 30)
           targetGlow.setDepth(999)
 
-          // Strong pulsing for target
+          // Strong pulsing for target (reduced duration)
           this.tweens.add({
             targets: targetGlow,
-            scaleX: 1.5,
-            scaleY: 1.5,
+            scaleX: 1.3,
+            scaleY: 1.3,
             alpha: 0.2,
-            duration: 500,
+            duration: 300,
             ease: 'Sine.easeInOut',
             yoyo: true,
-            repeat: -1
+            repeat: 3
           })
 
           // Store hints
@@ -3710,21 +3710,21 @@ export class GameScene extends Phaser.Scene {
       .setAlpha(0)
       .setScale(0)
 
-    // Pop in animation
+    // Pop in animation (reduced duration)
     this.tweens.add({
       targets: hintText,
       alpha: 1,
       scale: 1.2,
-      duration: 300,
+      duration: 200,
       ease: 'Back.easeOut',
       onComplete: () => {
-        // Stay for 3 seconds
-        this.time.delayedCall(3000, () => {
+        // Stay for 2 seconds (reduced from 3)
+        this.time.delayedCall(2000, () => {
           this.tweens.add({
             targets: hintText,
             alpha: 0,
             scale: 0.5,
-            duration: 300,
+            duration: 200,
             ease: 'Back.easeIn',
             onComplete: () => {
               hintText.destroy()
