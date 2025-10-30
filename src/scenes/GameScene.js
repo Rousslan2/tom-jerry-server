@@ -2481,6 +2481,13 @@ export class GameScene extends Phaser.Scene {
     // Delay restock
     this.time.delayedCall(gameConfig.refillDelay.value, () => {
       this.refillSlot(row, col)
+
+      // 🌊 CASCADE MODE: Trigger cascade effect after elimination and restock
+      if (this.selectedGameMode === 'cascade') {
+        this.time.delayedCall(300, () => {
+          this.triggerCascadeEffect(row, col)
+        })
+      }
     })
   }
   
@@ -2833,12 +2840,6 @@ export class GameScene extends Phaser.Scene {
     // Check game end conditions after each target display update
     this.checkGameEnd()
 
-    // 🌊 CASCADE MODE: After elimination, trigger cascade effect
-    if (this.selectedGameMode === 'cascade') {
-      this.time.delayedCall(800, () => {
-        this.triggerCascadeEffect(row, col)
-      })
-    }
   }
 
   setupMultiplayerSync() {
