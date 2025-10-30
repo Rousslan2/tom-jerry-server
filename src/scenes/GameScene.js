@@ -1315,8 +1315,8 @@ export class GameScene extends Phaser.Scene {
     
     // Create item sprite, initially set to invisible
     const item = this.add.image(slot.x, slot.y, itemType)
-      .setScale(0)  // Start from 0, prepare for pop-in animation
-      .setAlpha(0)  // Initially transparent
+      .setScale(0.075)  // Start from normal size, prepare for pop-in animation
+      .setAlpha(1)  // Initially visible
     
     // 🚧 Tom & Jerry obstacle items cannot be dragged!
     const isObstacle = itemType === 'anvil_obstacle' || itemType === 'safe_obstacle' || itemType === 'piano_obstacle'
@@ -1591,6 +1591,8 @@ export class GameScene extends Phaser.Scene {
           .setDepth(9999)
           .setScale(0.08)
           .setAlpha(0.6)
+          .setTint(0xFFFFFF) // Ensure visible
+          .setTint(0xFFFFFF) // Ensure visible
         
         this.tweens.add({
           targets: dust,
@@ -1867,8 +1869,8 @@ export class GameScene extends Phaser.Scene {
         
         // Create item with GOLDEN GLOW effect
         const item = this.add.image(slot.x, -100, helpItemType)
-          .setScale(0)
-          .setAlpha(0)
+          .setScale(0.075)
+          .setAlpha(1)
         
         item.setInteractive({ draggable: true })
         
@@ -2658,7 +2660,8 @@ export class GameScene extends Phaser.Scene {
         .setOrigin(0.5, 0.5)
         .setScale(0.08)
         .setAlpha(0.8)
-        .setDepth(9999);
+        .setDepth(9999)
+        .setTint(0xFFFFFF); // Ensure visible
       
       // Smoke spreads then disappears
       this.tweens.add({
