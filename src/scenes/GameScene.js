@@ -1505,7 +1505,10 @@ export class GameScene extends Phaser.Scene {
       
       // Play running sound and Tom's laugh
       this.sound.play('tom_running_footsteps', { volume: audioConfig.sfxVolume.value * 0.7 })
-      
+
+      // Update Tom event stats
+      this.updatePlayerStatsTomEvent()
+
       // Add dust clouds behind them
       this.createDustTrail(yPosition)
     })
@@ -1697,7 +1700,10 @@ export class GameScene extends Phaser.Scene {
       
       // Play rumble sound
       this.sound.play('screen_shake_rumble', { volume: audioConfig.sfxVolume.value })
-      
+
+      // Update Tom event stats
+      this.updatePlayerStatsTomEvent()
+
       // All items vibrate!
       this.gridSlots.forEach((row, rowIndex) => {
         row.forEach((slot, colIndex) => {
@@ -1853,9 +1859,12 @@ export class GameScene extends Phaser.Scene {
       })
     })
     
+    // Update Tom help stats
+    this.updatePlayerStatsTomHelp()
+
     // Show helpful message
     this.showHelpMessage("✨ TOM HELPED YOU! ✨")
-    
+
     // Play helpful sound
     this.sound.play('item_pickup', { volume: audioConfig.sfxVolume.value })
   }
@@ -3217,6 +3226,7 @@ export class GameScene extends Phaser.Scene {
               // Found a hint! Highlight the slot with 2 items
               this.highlightHintSlot(row, col, itemType)
               this.hintsUsed++ // Increment hint counter
+              this.updatePlayerStatsHint() // Update hint usage in stats
               this.updateHintButtonText() // Update button text
               return // Show only one hint at a time
             }
@@ -3604,12 +3614,15 @@ export class GameScene extends Phaser.Scene {
         this.gameTimer.remove()
       }
       
+      // Update player stats
+      this.updatePlayerStats(true) // true = victory
+    
       // 🎮 MULTIPLAYER: If someone wins, opponent loses!
       if (this.gameMode === 'online') {
         multiplayerService.sendGameEnd('win')
       }
-      
-      this.scene.launch('VictoryScene', { 
+    
+      this.scene.launch('VictoryScene', {
         score: this.score,
         moves: this.currentMoves,
         maxMoves: levelConfig.maxMoves.value,
@@ -3623,11 +3636,14 @@ export class GameScene extends Phaser.Scene {
       this.gameOver = true
       this.sound.play('game_over', { volume: audioConfig.sfxVolume.value })
       
+      // Update player stats
+      this.updatePlayerStats(false) // false = defeat
+
       // 🎮 MULTIPLAYER: If someone loses, tell opponent
       if (this.gameMode === 'online') {
         multiplayerService.sendGameEnd('lose')
       }
-      
+
       this.scene.launch('GameOverScene', {
         score: this.score,
         moves: this.currentMoves,
@@ -3930,5 +3946,120 @@ export class GameScene extends Phaser.Scene {
 
   update() {
     // Game main loop update
+  }
+
+  // 📊 Update player statistics
+  updatePlayerStats(isVictory) {
+    const stats = this.loadPlayerStats()
+
+    // Update games played
+    stats.gamesPlayed++
+
+    // Update wins/losses
+    if (isVictory) {
+      stats.gamesWon++
+    }
+
+    // Update total score
+    stats.totalScore += this.score
+
+    // Update best score
+    if (this.score > stats.bestScore) {
+      stats.bestScore = this.score
+    }
+
+    // Update best combo
+    if (this.combo > stats.bestCombo) {
+      stats.bestCombo = this.combo
+    }
+
+    // Update play time (estimate based on moves)
+    stats.playTimeSeconds += Math.max(30, this.currentMoves * 5) // Estimate 5 seconds per move, minimum 30 seconds
+
+    // Update mode-specific stats
+    const modeKey = this.selectedGameMode
+    if (modeKey === 'classic') {
+      stats.classicGamesPlayed++
+      if (isVictory) stats.classicGamesWon++
+    } else if (modeKey === 'time_attack') {
+      stats.timeAttackGamesPlayed++
+      if (isVictory) stats.timeAttackGamesWon++
+    } else if (modeKey === 'endless') {
+      stats.endlessGamesPlayed++
+      if (isVictory) stats.endlessGamesWon++
+    } else if (modeKey === 'zen') {
+      stats.zenGamesPlayed++
+      if (isVictory) stats.zenGamesWon++
+    }
+
+    // Save updated stats
+    this.savePlayerStats(stats)
+  }
+
+  // 💡 Update hint usage stats
+  updatePlayerStatsHint() {
+    const stats = this.loadPlayerStats()
+    stats.totalHintsUsed++
+    this.savePlayerStats(stats)
+  }
+
+  // 🆘 Update Tom help stats
+  updatePlayerStatsTomHelp() {
+    const stats = this.loadPlayerStats()
+    stats.totalTomHelps++
+    this.savePlayerStats(stats)
+  }
+
+  // 🎪 Update Tom event stats
+  updatePlayerStatsTomEvent() {
+    const stats = this.loadPlayerStats()
+    stats.tomEventsSeen++
+    this.savePlayerStats(stats)
+  }
+
+  // 📊 Load player statistics from localStorage
+  loadPlayerStats() {
+    const defaultStats = {
+      gamesPlayed: 0,
+      gamesWon: 0,
+      totalScore: 0,
+      bestScore: 0,
+      bestCombo: 0,
+      totalHintsUsed: 0,
+      totalTomHelps: 0,
+      playTimeSeconds: 0,
+      tomEventsSeen: 0,
+      classicGamesPlayed: 0,
+      classicGamesWon: 0,
+      timeAttackGamesPlayed: 0,
+      timeAttackGamesWon: 0,
+      endlessGamesPlayed: 0,
+      endlessGamesWon: 0,
+      zenGamesPlayed: 0,
+      zenGamesWon: 0
+    }
+
+    const savedStats = localStorage.getItem('playerStats')
+    if (savedStats) {
+      try {
+        const parsedStats = JSON.parse(savedStats)
+        return { ...defaultStats, ...parsedStats }
+      } catch (error) {
+        console.warn('Failed to parse player stats, using defaults')
+        return defaultStats
+      }
+    }
+
+    return defaultStats
+  }
+
+  // 💾 Save player statistics to localStorage
+  savePlayerStats(stats) {
+    try {
+      localStorage.setItem('playerStats', JSON.stringify(stats))
+      console.log('📊 Player stats saved:', stats)
+    } catch (error) {
+      console.warn('Failed to save player stats:', error)
+    }
   }
 }

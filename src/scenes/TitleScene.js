@@ -172,6 +172,7 @@ export class TitleScene extends Phaser.Scene {
   createUI() {
     this.createGameTitle()
     this.createStartButton()
+    this.createProfileButton()
   }
 
   createGameTitle() {
@@ -226,15 +227,15 @@ export class TitleScene extends Phaser.Scene {
   createStartButton() {
     const screenWidth = this.cameras.main.width
     const screenHeight = this.cameras.main.height
-    
+
     // Create start game button
-    this.startButton = this.add.image(screenWidth / 2, screenHeight * 0.7, 'cartoon_button')
+    this.startButton = this.add.image(screenWidth / 2, screenHeight * 0.65, 'cartoon_button')
       .setInteractive()
-      .setScale(0.4)
-    
+      .setScale(0.35)
+
     // Button text - use more cartoon style
-    this.startButtonText = this.add.text(screenWidth / 2, screenHeight * 0.7, 'START GAME', {
-      fontSize: `${window.getResponsiveFontSize(32)}px`,
+    this.startButtonText = this.add.text(screenWidth / 2, screenHeight * 0.65, 'START GAME', {
+      fontSize: `${window.getResponsiveFontSize(28)}px`,
       fontFamily: window.getGameFont(),
       color: '#FFFFFF',
       stroke: '#000000',
@@ -242,16 +243,62 @@ export class TitleScene extends Phaser.Scene {
       align: 'center',
       fontStyle: 'bold'
     }).setOrigin(0.5, 0.5)
-    
+
     // Add shadow to button text
     this.startButtonText.setShadow(3, 3, 'rgba(0,0,0,0.5)', 5)
-    
+
+    // Button interaction
+    this.startButton.on('pointerover', () => {
+      this.startButton.setScale(0.4)
+      this.startButtonText.setScale(1.1)
+    })
+
+    this.startButton.on('pointerout', () => {
+      this.startButton.setScale(0.35)
+      this.startButtonText.setScale(1)
+    })
+
+    this.startButton.on('pointerdown', () => {
+      this.startButton.setScale(0.3)
+      this.startButtonText.setScale(0.9)
+    })
+
+    this.startButton.on('pointerup', () => {
+      this.startButton.setScale(0.4)
+      this.startButtonText.setScale(1.1)
+      this.startGame()
+    })
+  }
+
+  createProfileButton() {
+    const screenWidth = this.cameras.main.width
+    const screenHeight = this.cameras.main.height
+
+    // Create profile button (smaller, positioned below start button)
+    this.profileButton = this.add.image(screenWidth / 2, screenHeight * 0.75, 'cartoon_button')
+      .setInteractive()
+      .setScale(0.25)
+
+    // Button text
+    this.profileButtonText = this.add.text(screenWidth / 2, screenHeight * 0.75, '👤 PROFILE', {
+      fontSize: `${window.getResponsiveFontSize(20)}px`,
+      fontFamily: window.getGameFont(),
+      color: '#FFFFFF',
+      stroke: '#000000',
+      strokeThickness: this.isMobile ? 6 : 4,
+      align: 'center',
+      fontStyle: 'bold'
+    }).setOrigin(0.5, 0.5)
+
+    // Add shadow to button text
+    this.profileButtonText.setShadow(2, 2, 'rgba(0,0,0,0.5)', 3)
+
     // Add hint text - adapt for mobile/desktop
-    const hintMessage = this.isMobile 
-      ? '(Tap button to start)' 
+    const hintMessage = this.isMobile
+      ? '(Tap button to start)'
       : '(Press ENTER or SPACE to start)'
-    
-    this.hintText = this.add.text(screenWidth / 2, screenHeight * 0.8, hintMessage, {
+
+    this.hintText = this.add.text(screenWidth / 2, screenHeight * 0.85, hintMessage, {
       fontSize: `${window.getResponsiveFontSize(16)}px`,
       fontFamily: window.getGameFont(),
       color: '#FFFFFF',
@@ -259,7 +306,7 @@ export class TitleScene extends Phaser.Scene {
       strokeThickness: this.isMobile ? 4 : 3,
       align: 'center'
     }).setOrigin(0.5, 0.5)
-    
+
     // Add blinking effect to hint text
     this.tweens.add({
       targets: this.hintText,
@@ -268,27 +315,27 @@ export class TitleScene extends Phaser.Scene {
       yoyo: true,
       repeat: -1
     })
-    
+
     // Button interaction
-    this.startButton.on('pointerover', () => {
-      this.startButton.setScale(0.45)
-      this.startButtonText.setScale(1.1)
+    this.profileButton.on('pointerover', () => {
+      this.profileButton.setScale(0.3)
+      this.profileButtonText.setScale(1.1)
     })
-    
-    this.startButton.on('pointerout', () => {
-      this.startButton.setScale(0.4)
-      this.startButtonText.setScale(1)
+
+    this.profileButton.on('pointerout', () => {
+      this.profileButton.setScale(0.25)
+      this.profileButtonText.setScale(1)
     })
-    
-    this.startButton.on('pointerdown', () => {
-      this.startButton.setScale(0.35)
-      this.startButtonText.setScale(0.9)
+
+    this.profileButton.on('pointerdown', () => {
+      this.profileButton.setScale(0.2)
+      this.profileButtonText.setScale(0.9)
     })
-    
-    this.startButton.on('pointerup', () => {
-      this.startButton.setScale(0.45)
-      this.startButtonText.setScale(1.1)
-      this.startGame()
+
+    this.profileButton.on('pointerup', () => {
+      this.profileButton.setScale(0.3)
+      this.profileButtonText.setScale(1.1)
+      this.openProfile()
     })
   }
 
@@ -328,17 +375,32 @@ export class TitleScene extends Phaser.Scene {
 
   startGame() {
     if (this.isStarting) return
-    
+
     this.isStarting = true
     this.sound.play('ui_click', { volume: audioConfig.sfxVolume.value })
-    
+
     // Stop background music before switching scenes
     if (this.backgroundMusic && this.backgroundMusic.isPlaying) {
       this.backgroundMusic.stop()
     }
-    
+
     // Switch to mode selection scene
     this.scene.start('ModeSelectionScene')
+  }
+
+  openProfile() {
+    if (this.isStarting) return
+
+    this.isStarting = true
+    this.sound.play('ui_click', { volume: audioConfig.sfxVolume.value })
+
+    // Stop background music before switching scenes
+    if (this.backgroundMusic && this.backgroundMusic.isPlaying) {
+      this.backgroundMusic.stop()
+    }
+
+    // Switch to player profile scene
+    this.scene.start('PlayerProfileScene')
   }
 
   update() {
