@@ -4197,8 +4197,15 @@ export class GameScene extends Phaser.Scene {
       })
 
       // Update position indicators
-   // 🌊 Create water ripple effect at cascade point
-   createWaterRippleEffect(row, col) {
+      this.updatePositionIndicator(fromRow, fromCol, fromPosition, null)
+      this.updatePositionIndicator(fromRow + 1, fromCol, emptyPos, item.itemType)
+
+      console.log(`🌊 Item fell from (${fromRow},${fromCol}) to (${fromRow + 1},${fromCol})`)
+    }
+  }
+
+  // 🌊 Create water ripple effect at cascade point
+  createWaterRippleEffect(row, col) {
      const slot = this.gridSlots[row][col]
      const x = slot.x
      const y = slot.y
@@ -4279,10 +4286,4 @@ export class GameScene extends Phaser.Scene {
        }
      }
    }
-      this.updatePositionIndicator(fromRow, fromCol, fromPosition, null)
-      this.updatePositionIndicator(fromRow + 1, fromCol, emptyPos, item.itemType)
-
-      console.log(`🌊 Item fell from (${fromRow},${fromCol}) to (${fromRow + 1},${fromCol})`)
-    }
-  }
 }
