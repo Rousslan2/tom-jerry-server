@@ -1525,6 +1525,14 @@ export class GameScene extends Phaser.Scene {
       loop: true
     })
     console.log('🔍 Periodic match checker started (every 3 seconds)')
+
+    // 🔧 CRITICAL FIX: Also do an immediate scan after initial population
+    this.time.delayedCall(500, () => {
+      if (!this.gameOver && !this.levelComplete) {
+        console.log('🔍 Performing initial match scan after population...')
+        this.scanAllSlotsForMissedMatches()
+      }
+    })
   }
   
   // 🔍 Scan all slots for missed matches
