@@ -1122,67 +1122,110 @@ export class GameScene extends Phaser.Scene {
       this.pauseGame()
     })
     
+  // Centralized drag event handlers
+  handleDragStart(pointer, gameObject) {
+    this.selectedItem = gameObject
+    this.isDragging = true
+
+    // Kill any existing tweens on this object to prevent accumulation
+    this.tweens.killTweensOf(gameObject)
+
+    // Reset to normal scale before starting animation
+    gameObject.setScale(0.075)
+
+    // Cartoon-style pickup animation
+    this.tweens.add({
+      targets: gameObject,
+      scaleX: 0.075 * 1.5,
+      scaleY: 0.075 * 1.5,
+      duration: 150,
+      ease: 'Back.easeOut',
+      yoyo: true,
+      onComplete: () => {
+        gameObject.setScale(0.090)  // Keep slightly larger state when dragging
+      }
+    })
+
+    gameObject.setDepth(1000)
+    gameObject.setAlpha(1.0)  // Completely opaque when dragging
+
+    // Add cute rainbow glow effect
+    gameObject.setTint(0xFFB6C1)  // Light pink glow effect
+
+    // Create cute multi-layer halo effect
+    this.dragRing = this.add.graphics()
+
+    // Outer halo - pink
+    this.dragRing.lineStyle(4, 0xFF69B4, 0.6)
+    this.dragRing.strokeCircle(gameObject.x, gameObject.y, 30 * 0.95)  // Halo size reduced to 95%
+
+    // Middle halo - purple
+    this.dragRing.lineStyle(3, 0xDA70D6, 0.7)
+    this.dragRing.strokeCircle(gameObject.x, gameObject.y, 22 * 0.95)  // Halo size reduced to 95%
+
+    // Inner halo - white
+    this.dragRing.lineStyle(2, 0xFFFFFF, 0.8)
+    this.dragRing.strokeCircle(gameObject.x, gameObject.y, 15 * 0.95)  // Halo size reduced to 95%
+
+    this.dragRing.setDepth(999)
+
+    // Cute halo pulse animation
+    this.tweens.add({
+      targets: this.dragRing,
+      scaleX: 1.3,
+      scaleY: 1.3,
+      alpha: 0.4,
+      rotation: Math.PI * 2,  // Rotation effect
+      duration: 800,
+      ease: 'Sine.easeInOut',
+      repeat: -1,
+      yoyo: true
+    })
+
+    this.sound.play('item_pickup', { volume: audioConfig.sfxVolume.value })
+  }
+
+  handleDrag(pointer, gameObject, dragX, dragY) {
+    gameObject.x = dragX
+    gameObject.y = dragY
+
+    // Update halo position
+    if (this.dragRing) {
+      this.dragRing.x = dragX
+      this.dragRing.y = dragY
+    }
+
+    // Highlight available slots
+    this.highlightAvailableSlots()
+  }
+
+  handleDragEnd(pointer, gameObject) {
+    // Clear drag effects
+    if (this.dragRing) {
+      this.tweens.killTweensOf(this.dragRing)
+      this.dragRing.destroy()
+      this.dragRing = null
+    }
+
+    this.handleItemDrop(gameObject, pointer)
+    this.selectedItem = null
+    this.isDragging = false
+
+    // Clear slot highlights
+    this.clearSlotHighlights()
+  }
     // Setup drag input
     this.input.on('dragstart', (pointer, gameObject) => {
-      this.selectedItem = gameObject
-      this.isDragging = true
-      
-      // Kill any existing tweens on this object to prevent accumulation
-      this.tweens.killTweensOf(gameObject)
-      
-      // Reset to normal scale before starting animation
-      gameObject.setScale(0.075)
-      
-      // Cartoon-style pickup animation
-      this.tweens.add({
-        targets: gameObject,
-        scaleX: 0.075 * 1.5,
-        scaleY: 0.075 * 1.5,
-        duration: 150,
-        ease: 'Back.easeOut',
-        yoyo: true,
-        onComplete: () => {
-          gameObject.setScale(0.090)  // Keep slightly larger state when dragging
-        }
-      })
-      
-      gameObject.setDepth(1000)
-      gameObject.setAlpha(1.0)  // Completely opaque when dragging
-      
-      // Add cute rainbow glow effect
-      gameObject.setTint(0xFFB6C1)  // Light pink glow effect
-      
-      // Create cute multi-layer halo effect
-      this.dragRing = this.add.graphics()
-      
-      // Outer halo - pink
-      this.dragRing.lineStyle(4, 0xFF69B4, 0.6)
-      this.dragRing.strokeCircle(gameObject.x, gameObject.y, 30 * 0.95)  // Halo size reduced to 95%
-      
-      // Middle halo - purple  
-      this.dragRing.lineStyle(3, 0xDA70D6, 0.7)
-      this.dragRing.strokeCircle(gameObject.x, gameObject.y, 22 * 0.95)  // Halo size reduced to 95%
-      
-      // Inner halo - white
-      this.dragRing.lineStyle(2, 0xFFFFFF, 0.8)
-      this.dragRing.strokeCircle(gameObject.x, gameObject.y, 15 * 0.95)  // Halo size reduced to 95%
-      
-      this.dragRing.setDepth(999)
-      
-      // Cute halo pulse animation
-      this.tweens.add({
-        targets: this.dragRing,
-        scaleX: 1.3,
-        scaleY: 1.3,
-        alpha: 0.4,
-        rotation: Math.PI * 2,  // Rotation effect
-        duration: 800,
-        ease: 'Sine.easeInOut',
-        repeat: -1,
-        yoyo: true
-      })
-      
-      this.sound.play('item_pickup', { volume: audioConfig.sfxVolume.value })
+      this.handleDragStart(pointer, gameObject)
+    })
+
+    // Add separate drag event handler
+    this.input.on('drag', (pointer, gameObject, dragX, dragY) => {
+      this.handleDrag(pointer, gameObject, dragX, dragY)
+    })
+
+    this.input.on('dragend', (pointer, gameObject) => {
+      this.handleDragEnd(pointer, gameObject)
     })
     
     this.input.on('drag', (pointer, gameObject, dragX, dragY) => {
@@ -4307,14 +4350,26 @@ export class GameScene extends Phaser.Scene {
               item.disableInteractive()
             }
 
-            // Set up fresh interactivity
+            // Set up fresh interactivity with proper event handling
             item.setInteractive({ draggable: true, useHandCursor: true })
-            console.log(`🌊 CASCADE FALL: ${item.itemType} interactivity enabled:`, item.input ? item.input.enabled : 'no input')
 
-            // Add drag event listeners to verify they're working
-            item.on('dragstart', (pointer) => {
-              console.log(`🌊 DRAG START: ${item.itemType} at (${item.gridRow},${item.gridCol})`)
+            // CRITICAL FIX: Ensure drag events are properly bound
+            item.removeAllListeners('dragstart')
+            item.removeAllListeners('drag')
+            item.removeAllListeners('dragend')
+
+            // Re-bind drag events
+            item.on('dragstart', (pointer, dragX, dragY) => {
+              this.handleDragStart(pointer, item)
             })
+            item.on('drag', (pointer, dragX, dragY) => {
+              this.handleDrag(pointer, item, dragX, dragY)
+            })
+            item.on('dragend', (pointer) => {
+              this.handleDragEnd(pointer, item)
+            })
+
+            console.log(`🌊 CASCADE FALL: ${item.itemType} interactivity enabled:`, item.input ? item.input.enabled : 'no input')
 
             // 📱 Re-enhance drag & drop for mobile
             if (this.mobileHelper) {
@@ -4330,12 +4385,18 @@ export class GameScene extends Phaser.Scene {
           item.positionIndex = targetPos
 
           // Ensure texture is properly applied after animation
-          item.setTexture(item.itemType)
-          this.applyTomJerryItemEnhancement(item)
-          this.applyHighQualityRendering(item)
+          try {
+            item.setTexture(item.itemType)
+            this.applyTomJerryItemEnhancement(item)
+            this.applyHighQualityRendering(item)
+          } catch (e) {
+            console.warn(`Texture update failed for ${item.itemType}:`, e)
+          }
 
           // Check if this creates a new match
-          this.checkForElimination(fromRow + 1, fromCol)
+          this.time.delayedCall(50, () => {
+            this.checkForElimination(fromRow + 1, fromCol)
+          })
         }
       }
     })
@@ -4681,15 +4742,43 @@ export class GameScene extends Phaser.Scene {
                console.log(`🌊 CASCADE SPAWN: Item is valid, setting up properties`)
 
                // Ensure texture is properly applied
-               item.setTexture(itemType)
-               this.applyTomJerryItemEnhancement(item)
-               this.applyHighQualityRendering(item)
+               try {
+                 item.setTexture(itemType)
+                 this.applyTomJerryItemEnhancement(item)
+                 this.applyHighQualityRendering(item)
+               } catch (e) {
+                 console.warn(`Texture update failed for ${itemType}:`, e)
+               }
 
                // CRITICAL: Force re-enable interactivity for cascade mode items
                const isObstacle = itemType === 'anvil_obstacle' || itemType === 'safe_obstacle' || itemType === 'piano_obstacle'
                if (!isObstacle) {
                  console.log(`🌊 CASCADE SPAWN: Making ${itemType} interactive`)
-                 item.setInteractive({ draggable: true })
+
+                 // Remove any existing interactivity first
+                 if (item.input && item.input.enabled) {
+                   item.disableInteractive()
+                 }
+
+                 // Set up fresh interactivity with proper event handling
+                 item.setInteractive({ draggable: true, useHandCursor: true })
+
+                 // CRITICAL FIX: Ensure drag events are properly bound
+                 item.removeAllListeners('dragstart')
+                 item.removeAllListeners('drag')
+                 item.removeAllListeners('dragend')
+
+                 // Re-bind drag events
+                 item.on('dragstart', (pointer, dragX, dragY) => {
+                   this.handleDragStart(pointer, item)
+                 })
+                 item.on('drag', (pointer, dragX, dragY) => {
+                   this.handleDrag(pointer, item, dragX, dragY)
+                 })
+                 item.on('dragend', (pointer) => {
+                   this.handleDragEnd(pointer, item)
+                 })
+
                  if (this.mobileHelper) {
                    this.mobileHelper.enhanceDragAndDrop(item)
                  }
@@ -4705,8 +4794,10 @@ export class GameScene extends Phaser.Scene {
 
                console.log(`🌊 CASCADE SPAWN: Grid updated, checking for matches at (${pos.row},${pos.col})`)
 
-               // Check for matches
-               this.checkForElimination(pos.row, pos.col)
+               // Check for matches with slight delay
+               this.time.delayedCall(50, () => {
+                 this.checkForElimination(pos.row, pos.col)
+               })
 
                console.log(`🌊 CASCADE SPAWN: Complete for ${itemType} at (${pos.row},${pos.col},${pos.pos})`)
              } else {
