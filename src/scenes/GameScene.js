@@ -3602,8 +3602,13 @@ export class GameScene extends Phaser.Scene {
         const gridCell = this.gridData[row][col]
         const itemIndex = gridCell.positions.findIndex(pos => pos === itemType)
 
-        if (itemIndex !== -1) {
+        if (itemIndex !== -1 && itemIndex < gridCell.items.length) {
           const item = gridCell.items[itemIndex]
+
+          // Safety check - ensure item exists and has position properties
+          if (!item || !item.x || !item.y) {
+            continue
+          }
 
           // Create arrow pointing to the item
           const arrow = this.add.text(item.x, item.y - 40, '⬇️', {
