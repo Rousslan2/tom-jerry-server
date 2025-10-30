@@ -1358,10 +1358,46 @@ export class GameScene extends Phaser.Scene {
     // Apply high-quality rendering to item
     this.applyHighQualityRendering(item)
     
-    // Set item position directly without animation
-    item.setScale(0.075)
-    item.setAlpha(1)
-    item.y = slot.y + offset.y
+    // 🎬 SPECIAL: Obstacle items fall from sky with Tom & Jerry style animation!
+    if (isObstacle) {
+      // Start from top of screen
+      const startY = -100
+      item.y = startY
+      item.setScale(0.075)
+      item.setAlpha(1)
+      
+      // Fall from sky with bounce
+      this.tweens.add({
+        targets: item,
+        y: slot.y + offset.y,
+        duration: 600,
+        ease: 'Bounce.easeOut',
+        delay: Phaser.Math.Between(0, 300)
+      })
+      
+      // Rotate while falling
+      this.tweens.add({
+        targets: item,
+        rotation: Math.PI * 2,
+        duration: 600,
+        ease: 'Linear',
+        delay: Phaser.Math.Between(0, 300),
+        onComplete: () => {
+          // Impact effect when landing!
+          this.createObstacleImpactEffect(item.x, item.y)
+        }
+      })
+    } else {
+      // Cartoon-style pop-in animation for normal items - Bigger items for 3-row grid!
+      this.tweens.add({
+        targets: item,
+        scale: 0.075,  // 40% bigger for better visibility with 3-row grid (was 0.053 for 5-row)
+        alpha: 1,      // Completely opaque
+        duration: 300,
+        ease: 'Back.easeOut.config(2)',  // Elastic effect
+        delay: Phaser.Math.Between(0, 200)  // Random delay to stagger item appearances
+      })
+    }
     
     // Store item information
     item.itemType = itemType
@@ -1866,11 +1902,32 @@ export class GameScene extends Phaser.Scene {
         item.setDepth(100 + pos.posIndex)
         this.applyHighQualityRendering(item)
         
-        // Set item position directly without animation
-        item.setScale(0.075)
-        item.setAlpha(1)
-        item.x = slot.x + offset.x
-        item.y = slot.y + offset.y
+        // ✨ SPECIAL GOLDEN GLOW for helpful items!
+        item.setTint(0xFFD700) // Golden color
+        
+        // Fall from sky with sparkles
+        this.tweens.add({
+          targets: item,
+          y: slot.y + offset.y,
+          x: slot.x + offset.x,
+          scale: 0.075,
+          alpha: 1,
+          duration: 600,
+          ease: 'Back.easeOut',
+          onComplete: () => {
+            // Flash effect
+            this.tweens.add({
+              targets: item,
+              alpha: 0.5,
+              duration: 200,
+              yoyo: true,
+              repeat: 3,
+              onComplete: () => {
+                item.clearTint() // Remove golden tint after flash
+              }
+            })
+          }
+        })
         
         // Store item information
         item.itemType = helpItemType
@@ -3595,13 +3652,19 @@ export class GameScene extends Phaser.Scene {
     // Shuffle items array
     Phaser.Utils.Array.Shuffle(allItems)
     
-    // Set items directly to center without animation
+    // Animate items flying to center
     allItems.forEach((itemData, index) => {
-      itemData.sprite.x = screenWidth / 2
-      itemData.sprite.y = screenHeight / 2
-      itemData.sprite.setScale(0)
-      itemData.sprite.setRotation(Math.PI * 2)
-      itemData.sprite.setAlpha(0.5)
+      this.tweens.add({
+        targets: itemData.sprite,
+        x: screenWidth / 2,
+        y: screenHeight / 2,
+        scale: 0,
+        rotation: Math.PI * 2,
+        alpha: 0.5,
+        duration: 500,
+        delay: index * 10,
+        ease: 'Back.easeIn'
+      })
     })
     
     // Wait for animation, then redistribute
@@ -4355,53 +4418,62 @@ export class GameScene extends Phaser.Scene {
       item.disableInteractive()
     }
 
-    // Check if item still exists and is active
-    if (item && item.active && !item.destroyed) {
-      // Restore original depth
-      item.setDepth(originalDepth)
+    // Animate falling with bounce
+    this.tweens.add({
+      targets: item,
+      y: newY,
+      duration: 400,
+      ease: 'Bounce.easeOut',
+      onComplete: () => {
+        // Check if item still exists and is active
+        if (item && item.active && !item.destroyed) {
+          // Restore original depth
+          item.setDepth(originalDepth)
 
-      // CRITICAL: Ensure item is properly interactive
-      // Only make non-obstacle items interactive
-      const isObstacle = item.itemType === 'anvil_obstacle' || item.itemType === 'safe_obstacle' || item.itemType === 'piano_obstacle'
-      if (wasInteractive && !isObstacle) {
-        console.log(`Making ${item.itemType} interactive at (${fromRow + 1},${fromCol})`)
+          // CRITICAL: Ensure item is properly interactive
+          // Only make non-obstacle items interactive
+          const isObstacle = item.itemType === 'anvil_obstacle' || item.itemType === 'safe_obstacle' || item.itemType === 'piano_obstacle'
+          if (wasInteractive && !isObstacle) {
+            console.log(`Making ${item.itemType} interactive at (${fromRow + 1},${fromCol})`)
 
-        // Remove any existing interactivity first
-        if (item.input && item.input.enabled) {
-          item.disableInteractive()
+            // Remove any existing interactivity first
+            if (item.input && item.input.enabled) {
+              item.disableInteractive()
+            }
+
+            // Set up fresh interactivity
+            item.setInteractive({ draggable: true, useHandCursor: true })
+            console.log(`${item.itemType} interactivity enabled:`, item.input ? item.input.enabled : 'no input')
+
+            // 📱 Re-enhance drag & drop for mobile
+            if (this.mobileHelper) {
+              this.mobileHelper.enhanceDragAndDrop(item)
+            }
+          } else if (isObstacle) {
+            console.log(`${item.itemType} is obstacle, keeping non-interactive`)
+          }
+
+          // Force update item properties to ensure it's properly detected
+          item.gridRow = fromRow + 1
+          item.gridCol = fromCol
+          item.positionIndex = targetPos
+
+          // Ensure texture is properly applied after animation
+          try {
+            item.setTexture(item.itemType)
+            this.applyTomJerryItemEnhancement(item)
+            this.applyHighQualityRendering(item)
+          } catch (e) {
+            console.warn(`Texture update failed for ${item.itemType}:`, e)
+          }
+
+          // Check if this creates a new match
+          this.time.delayedCall(50, () => {
+            this.checkForElimination(fromRow + 1, fromCol)
+          })
         }
-
-        // Set up fresh interactivity
-        item.setInteractive({ draggable: true, useHandCursor: true })
-        console.log(`${item.itemType} interactivity enabled:`, item.input ? item.input.enabled : 'no input')
-
-        // 📱 Re-enhance drag & drop for mobile
-        if (this.mobileHelper) {
-          this.mobileHelper.enhanceDragAndDrop(item)
-        }
-      } else if (isObstacle) {
-        console.log(`${item.itemType} is obstacle, keeping non-interactive`)
       }
-
-      // Force update item properties to ensure it's properly detected
-      item.gridRow = fromRow + 1
-      item.gridCol = fromCol
-      item.positionIndex = targetPos
-
-      // Ensure texture is properly applied after animation
-      try {
-        item.setTexture(item.itemType)
-        this.applyTomJerryItemEnhancement(item)
-        this.applyHighQualityRendering(item)
-      } catch (e) {
-        console.warn(`Texture update failed for ${item.itemType}:`, e)
-      }
-
-      // Check if this creates a new match
-      this.time.delayedCall(50, () => {
-        this.checkForElimination(fromRow + 1, fromCol)
-      })
-    }
+    })
 
     // Update position indicators
     this.updatePositionIndicator(fromRow, fromCol, fromPosition, null)
