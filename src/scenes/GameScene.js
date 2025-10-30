@@ -2511,8 +2511,10 @@ export class GameScene extends Phaser.Scene {
     const earnedPoints = basePoints * comboMultiplier
     this.score += earnedPoints
 
-    // Update score display
-    this.updateScoreDisplay()
+    // Update score display (only for non-boss modes)
+    if (this.selectedGameMode !== 'boss_battle') {
+      this.updateScoreDisplay()
+    }
 
     // ⚡ RUSH MODE: Add time bonuses for eliminations!
     if (this.selectedGameMode === 'rush') {
