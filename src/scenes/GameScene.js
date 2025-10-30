@@ -1024,54 +1024,8 @@ export class GameScene extends Phaser.Scene {
         return
       }
 
-      // Clear any existing hints first
-      this.clearHints()
-
-      const rows = gameConfig.gridRows.value
-      const cols = gameConfig.gridCols.value
-
-      // Find the best hint opportunity (prioritize slots with 2 same items that can be completed)
-      let bestHint = null
-      let maxAvailableItems = 0
-
-      for (let row = 0; row < rows; row++) {
-        for (let col = 0; col < cols; col++) {
-          const gridCell = this.gridData[row][col]
-
-          // Count items by type in this slot (only non-obstacle items)
-          const typeCounts = {}
-          gridCell.positions.forEach((itemType, index) => {
-            if (itemType && itemType !== 'anvil_obstacle' && itemType !== 'safe_obstacle' && itemType !== 'piano_obstacle') {
-              typeCounts[itemType] = (typeCounts[itemType] || 0) + 1
-            }
-          })
-
-          // Check each item type with exactly 2 items
-          for (let itemType in typeCounts) {
-            if (typeCounts[itemType] === 2) {
-              // Count how many of this item type are available elsewhere
-              const availableCount = this.countItemTypeAvailable(itemType, row, col)
-
-              // Prioritize hints with more available items (easier to complete)
-              if (availableCount > maxAvailableItems) {
-                maxAvailableItems = availableCount
-                bestHint = { row, col, itemType, availableCount }
-              }
-            }
-          }
-        }
-      }
-
-      if (bestHint) {
-        // Start sequential hinting
-        this.showSequentialHint(bestHint.row, bestHint.col, bestHint.itemType)
-        this.hintsUsed++ // Increment hint counter
-        this.updatePlayerStatsHint() // Update hint usage in stats
-        this.updateHintButtonText() // Update button text
-      } else {
-        // If no hints found, show a message
-        this.showNoHintMessage()
-      }
+      // Use the centralized showHint method
+      this.showHint()
     })
   }
 
@@ -3456,6 +3410,13 @@ export class GameScene extends Phaser.Scene {
       // If no hints found, show a message
       this.showNoHintMessage()
     }
+  }
+
+  // 📊 Update hint usage in player stats
+  updatePlayerStatsHint() {
+    const stats = this.loadPlayerStats()
+    stats.totalHintsUsed++
+    this.savePlayerStats(stats)
   }
 
   // 🔢 Count available items of a type (excluding a specific slot)
