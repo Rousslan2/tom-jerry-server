@@ -4297,7 +4297,9 @@ export class GameScene extends Phaser.Scene {
           item.setDepth(originalDepth)
 
           // CRITICAL: Ensure item is properly interactive for cascade mode
-          if (this.selectedGameMode === 'cascade' || wasInteractive) {
+          // Only make non-obstacle items interactive
+          const isObstacle = item.itemType === 'anvil_obstacle' || item.itemType === 'safe_obstacle' || item.itemType === 'piano_obstacle'
+          if ((this.selectedGameMode === 'cascade' || wasInteractive) && !isObstacle) {
             item.setInteractive({ draggable: true })
             // 📱 Re-enhance drag & drop for mobile
             if (this.mobileHelper) {
@@ -4309,6 +4311,11 @@ export class GameScene extends Phaser.Scene {
           item.gridRow = fromRow + 1
           item.gridCol = fromCol
           item.positionIndex = targetPos
+
+          // Ensure texture is properly applied after animation
+          item.setTexture(item.itemType)
+          this.applyTomJerryItemEnhancement(item)
+          this.applyHighQualityRendering(item)
 
           // Check if this creates a new match
           this.checkForElimination(fromRow + 1, fromCol)
@@ -4606,16 +4613,27 @@ export class GameScene extends Phaser.Scene {
          const item = this.add.image(slot.x + offset.x, -100, itemType)
            .setScale(0.075)
            .setAlpha(1)
+           .setDepth(100 + pos.pos) // Ensure proper depth
 
-         // Make it interactive
-         item.setInteractive({ draggable: true })
-         if (this.mobileHelper) {
-           this.mobileHelper.enhanceDragAndDrop(item)
+         // Check if it's an obstacle - obstacles should NOT be draggable
+         const isObstacle = itemType === 'anvil_obstacle' || itemType === 'safe_obstacle' || itemType === 'piano_obstacle'
+
+         if (!isObstacle) {
+           // Only make non-obstacle items interactive
+           item.setInteractive({ draggable: true })
+           if (this.mobileHelper) {
+             this.mobileHelper.enhanceDragAndDrop(item)
+           }
          }
 
-         // Apply enhancements
+         // Apply enhancements BEFORE animation to ensure proper rendering
          this.applyTomJerryItemEnhancement(item)
          this.applyHighQualityRendering(item)
+
+         // Force texture refresh to prevent white/invisible items
+         if (item.texture && item.texture.source && item.texture.source[0]) {
+           item.texture.source[0].refresh()
+         }
 
          // Store item info
          item.itemType = itemType
@@ -4631,14 +4649,22 @@ export class GameScene extends Phaser.Scene {
            ease: 'Bounce.easeOut',
            delay: index * 50,
            onComplete: () => {
-             // Update grid data
-             this.gridData[pos.row][pos.col].positions[pos.pos] = itemType
-             this.gridData[pos.row][pos.col].items.push(item)
+             // Double-check item is still valid and properly rendered
+             if (item && item.active && !item.destroyed) {
+               // Ensure texture is properly applied
+               item.setTexture(itemType)
+               this.applyTomJerryItemEnhancement(item)
+               this.applyHighQualityRendering(item)
 
-             this.updatePositionIndicator(pos.row, pos.col, pos.pos, itemType)
+               // Update grid data
+               this.gridData[pos.row][pos.col].positions[pos.pos] = itemType
+               this.gridData[pos.row][pos.col].items.push(item)
 
-             // Check for matches
-             this.checkForElimination(pos.row, pos.col)
+               this.updatePositionIndicator(pos.row, pos.col, pos.pos, itemType)
+
+               // Check for matches
+               this.checkForElimination(pos.row, pos.col)
+             }
            }
          })
 
