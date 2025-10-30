@@ -3143,12 +3143,14 @@ export class GameScene extends Phaser.Scene {
       return
     }
     
-    // Classic mode
-    this.moveCounterText.setText(`✨ Moves: ${this.currentMoves}/${levelConfig.maxMoves.value} ✨`)
-    
-    if (this.currentMoves >= levelConfig.maxMoves.value) {
-      this.moveCounterText.setColor('#FF6347')
-      this.moveCounterText.setText(`⚠️ Moves: ${this.currentMoves}/${levelConfig.maxMoves.value} ⚠️`)
+    // Classic mode - only update if text element exists
+    if (this.moveCounterText) {
+      this.moveCounterText.setText(`✨ Moves: ${this.currentMoves}/${levelConfig.maxMoves.value} ✨`)
+
+      if (this.currentMoves >= levelConfig.maxMoves.value) {
+        this.moveCounterText.setColor('#FF6347')
+        this.moveCounterText.setText(`⚠️ Moves: ${this.currentMoves}/${levelConfig.maxMoves.value} ⚠️`)
+      }
     }
   }
 
@@ -3838,20 +3840,22 @@ export class GameScene extends Phaser.Scene {
 
     this.rushTimeRemaining--
 
-    // Update display
-    const minutes = Math.floor(this.rushTimeRemaining / 60)
-    const seconds = this.rushTimeRemaining % 60
-    const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`
+    // Update display - only if UI element exists
+    if (this.moveCounterText) {
+      const minutes = Math.floor(this.rushTimeRemaining / 60)
+      const seconds = this.rushTimeRemaining % 60
+      const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`
 
-    this.moveCounterText.setText(`⚡ Rush: ${timeString}`)
+      this.moveCounterText.setText(`⚡ Rush: ${timeString}`)
 
-    // Color coding based on time remaining
-    if (this.rushTimeRemaining <= 10) {
-      this.moveCounterText.setColor('#FF0000') // Red - critical!
-    } else if (this.rushTimeRemaining <= 20) {
-      this.moveCounterText.setColor('#FF6347') // Orange - warning
-    } else {
-      this.moveCounterText.setColor('#00FF00') // Green - good!
+      // Color coding based on time remaining
+      if (this.rushTimeRemaining <= 10) {
+        this.moveCounterText.setColor('#FF0000') // Red - critical!
+      } else if (this.rushTimeRemaining <= 20) {
+        this.moveCounterText.setColor('#FF6347') // Orange - warning
+      } else {
+        this.moveCounterText.setColor('#00FF00') // Green - good!
+      }
     }
 
     // Time's up in Rush mode!
