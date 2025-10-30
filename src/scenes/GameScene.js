@@ -4101,6 +4101,9 @@ export class GameScene extends Phaser.Scene {
     const cols = gameConfig.gridCols.value
     let cascadeTriggered = false
 
+    // Create water ripple effect at elimination point
+    this.createWaterRippleEffect(row, col)
+
     // Check all slots for items that can fall (starting from bottom up)
     for (let r = rows - 2; r >= 0; r--) { // Start from second-to-last row
       for (let c = 0; c < cols; c++) {
@@ -4123,6 +4126,9 @@ export class GameScene extends Phaser.Scene {
       console.log('🌊 Cascade effect triggered - items falling!')
       // Play cascade sound
       this.sound.play('item_drop', { volume: audioConfig.sfxVolume.value * 0.8 })
+
+      // Create water splash effects
+      this.createWaterSplashEffects()
 
       // After cascade animation, check for new matches
       this.time.delayedCall(1000, () => {
@@ -4191,6 +4197,88 @@ export class GameScene extends Phaser.Scene {
       })
 
       // Update position indicators
+   // 🌊 Create water ripple effect at cascade point
+   createWaterRippleEffect(row, col) {
+     const slot = this.gridSlots[row][col]
+     const x = slot.x
+     const y = slot.y
+
+     // Create concentric ripple circles
+     for (let i = 0; i < 3; i++) {
+       const ripple = this.add.graphics()
+       ripple.lineStyle(3, 0x1E90FF, 0.8 - i * 0.2) // Blue ripples
+       ripple.strokeCircle(x, y, 20 + i * 15)
+       ripple.setDepth(999)
+
+       this.tweens.add({
+         targets: ripple,
+         scaleX: 2.5,
+         scaleY: 2.5,
+         alpha: 0,
+         duration: 800 + i * 200,
+         ease: 'Cubic.easeOut',
+         onComplete: () => ripple.destroy()
+       })
+     }
+
+     // Add water droplets
+     for (let i = 0; i < 8; i++) {
+       const angle = (i / 8) * Math.PI * 2
+       const distance = 40
+       const dropletX = x + Math.cos(angle) * distance
+       const dropletY = y + Math.sin(angle) * distance
+
+       const droplet = this.add.text(dropletX, dropletY, '💧', {
+         fontSize: '16px'
+       }).setOrigin(0.5, 0.5).setDepth(1000)
+
+       this.tweens.add({
+         targets: droplet,
+         y: dropletY + 30,
+         alpha: 0,
+         duration: 600,
+         ease: 'Power2',
+         delay: i * 50,
+         onComplete: () => droplet.destroy()
+       })
+     }
+   }
+
+   // 🌊 Create water splash effects during cascade
+   createWaterSplashEffects() {
+     const screenWidth = this.cameras.main.width
+     const screenHeight = this.cameras.main.height
+
+     // Random water splash effects across the screen
+     for (let i = 0; i < 5; i++) {
+       const splashX = Phaser.Math.Between(100, screenWidth - 100)
+       const splashY = Phaser.Math.Between(200, screenHeight - 200)
+
+       // Create splash particles
+       for (let j = 0; j < 6; j++) {
+         const particle = this.add.graphics()
+         particle.fillStyle(0x87CEEB, 0.7) // Light blue
+         particle.fillCircle(0, 0, Phaser.Math.Between(3, 8))
+         particle.setPosition(splashX, splashY)
+         particle.setDepth(999)
+
+         const angle = (j / 6) * Math.PI * 2 + Phaser.Math.Between(-0.5, 0.5)
+         const distance = Phaser.Math.Between(20, 60)
+
+         this.tweens.add({
+           targets: particle,
+           x: splashX + Math.cos(angle) * distance,
+           y: splashY + Math.sin(angle) * distance - 20,
+           alpha: 0,
+           scale: 0.5,
+           duration: Phaser.Math.Between(400, 800),
+           ease: 'Power2',
+           delay: i * 100 + j * 30,
+           onComplete: () => particle.destroy()
+         })
+       }
+     }
+   }
       this.updatePositionIndicator(fromRow, fromCol, fromPosition, null)
       this.updatePositionIndicator(fromRow + 1, fromCol, emptyPos, item.itemType)
 
