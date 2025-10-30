@@ -782,8 +782,8 @@ export class GameScene extends Phaser.Scene {
   createMoveCounter() {
     const screenWidth = this.cameras.main.width
     
-    // 🎮 For Endless/Zen/Rush mode, show different UI
-    if (this.selectedGameMode === 'endless' || this.selectedGameMode === 'zen' || this.selectedGameMode === 'rush') {
+    // 🎮 For Endless/Zen mode, show different UI
+    if (this.selectedGameMode === 'endless' || this.selectedGameMode === 'zen') {
       // Show move count without limit
       this.moveCounterBg = this.add.graphics()
       this.moveCounterBg.fillGradientStyle(0x9370DB, 0x9370DB, 0xBA55D3, 0xBA55D3, 0.95)
@@ -795,7 +795,6 @@ export class GameScene extends Phaser.Scene {
 
       let modeIcon = '♾️'
       if (this.selectedGameMode === 'zen') modeIcon = '🏆'
-      if (this.selectedGameMode === 'rush') modeIcon = '⚡'
 
       this.moveCounterText = this.add.text(screenWidth * 0.8, 50, `${modeIcon} Moves: ${this.currentMoves}`, {
         fontSize: `${window.getResponsiveFontSize(18)}px`,
@@ -806,6 +805,11 @@ export class GameScene extends Phaser.Scene {
         align: 'center',
         fontStyle: 'bold'
       }).setOrigin(0.5, 0.5).setDepth(2100)
+      return
+    }
+
+    // ⚡ For Rush mode, don't show moves counter at all - only timer!
+    if (this.selectedGameMode === 'rush') {
       return
     }
     
