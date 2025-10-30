@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { screenSize } from '../gameConfig.json'
 import { SettingsScene } from './SettingsScene.js'
+import { AssetManager } from '../utils/AssetManager.js'
 
 export class LoadingScene extends Phaser.Scene {
   constructor() {
@@ -12,85 +13,31 @@ export class LoadingScene extends Phaser.Scene {
     // Load saved settings from localStorage
     SettingsScene.loadSettings()
 
+    // Initialize Asset Manager for optimized loading
+    this.assetManager = new AssetManager(this)
+
     // Setup loading progress UI
     this.setupLoadingProgressUI(this)
 
     // Setup resource loading event listeners
-    this.load.on('progress', (v) => {
-      this.actualProgress = v
-      this.lastProgressTime = Date.now() // Track last progress update time
-      // Do not update UI directly here; a smoother loop will lerp displayProgress
-    })
+    this.load.on('progress', this.updateProgressBar, this)
     this.load.on('complete', this.onRealLoadComplete, this)
-    this.load.on('loaderror', (file) => {
-      console.warn('❌ Asset load error:', file?.src || file)
-      this.loadErrors = (this.loadErrors || 0) + 1
-      // If too many errors, fall back to force-complete
-      if (this.loadErrors >= 3) {
-        this.forceCompleteLoading('too_many_errors')
-      }
-    })
 
     // Ensure loading progress starts displaying from 0
     this.actualProgress = 0
     this.displayProgress = 0
     this.loadingComplete = false
-    this.lastProgressTime = Date.now() // Initialize progress tracking
 
-    // Load asset pack by type
-    // Use absolute path to be robust on different base URLs
-    this.load.pack('assetPack', '/assets/asset-pack.json')
+    // Load asset pack by type with optimization
+    this.load.pack('assetPack', 'assets/asset-pack.json')
 
-    // Add a fallback timeout for individual slow-loading assets
-    this.assetTimeouts = {}
-    this.load.on('filecomplete', (key) => {
-      if (this.assetTimeouts[key]) {
-        clearTimeout(this.assetTimeouts[key])
-        delete this.assetTimeouts[key]
-      }
-    })
-
-    // Set individual timeouts for critical assets
-    const criticalAssets = ['jerry_head', 'game_title', 'title_background']
-    criticalAssets.forEach(key => {
-      this.assetTimeouts[key] = setTimeout(() => {
-        console.warn(`⏰ Asset ${key} loading timeout - continuing without it`)
-        delete this.assetTimeouts[key]
-      }, 3000) // 3 second timeout per asset
-    })
-
-    // Detailed progress per file for diagnostics
-    this.load.on('fileprogress', (file, value) => {
-      // Log only occasionally to avoid spam
-      if (Math.abs((value || 0) - 0.2) < 0.001 || Math.abs((value || 0) - 0.5) < 0.001) {
-        console.log('⏬ Loading file:', file?.key || file?.src || 'unknown', 'progress:', value)
-      }
-    })
-
-    // Watchdog: if loading hangs, force completion after 15s (increased from 10s)
-    this.watchdog = this.time.delayedCall(15000, () => {
-      if (!this.loadingComplete) {
-        console.warn('⏱️ Loading watchdog triggered — forcing completion')
-        this.forceCompleteLoading('watchdog_timeout')
-      }
-    })
-
-    // Progress stall detector: if no progress for 8 seconds, force completion (increased from 5s)
-    this.stallDetector = this.time.addEvent({
-      delay: 1000, // Check every second
-      loop: true,
-      callback: () => {
-        if (!this.loadingComplete && Date.now() - this.lastProgressTime > 8000) {
-          console.warn('⏸️ Loading progress stalled — forcing completion')
-          this.forceCompleteLoading('progress_stall')
-        }
-      }
-    })
+    // Précharger des assets stratégiques
+    this.assetManager.preloadStrategicAssets()
   }
 
   create() {
     // Progress UI is already created in setupLoadingProgressUI
-    // Start smooth progress animation towards actual progress
+    // Start smooth progress animation
     this.startProgressAnimation()
   }
 
@@ -350,27 +297,18 @@ export class LoadingScene extends Phaser.Scene {
 
   // Start smooth progress animation
   startProgressAnimation() {
-    // Smoothly approach actualProgress every frame via timer
-    this.progressSmoothEvent = this.time.addEvent({
-      delay: 50,
-      loop: true,
-      callback: () => {
-        // Ease displayProgress toward actualProgress
-        const target = Math.min(1, this.actualProgress || 0)
-        this.displayProgress = this.displayProgress || 0
-        this.displayProgress += (target - this.displayProgress) * 0.2
-        
-        // Snap when very close to reduce jitter
-        if (Math.abs(target - this.displayProgress) < 0.005) {
-          this.displayProgress = target
-        }
-        
+    // Create smooth progress animation
+    this.progressTween = this.tweens.add({
+      targets: this,
+      displayProgress: 1,
+      duration: 3000, // 3 second loading animation, ensure user can see complete process
+      ease: 'Power2.easeOut',
+      onUpdate: () => {
         this.updateProgressBar(this.displayProgress)
-        
-        // Complete when both display and actual are at 1 and real loading complete
-        if (this.loadingComplete && target >= 1 && this.displayProgress >= 1) {
-          this.progressSmoothEvent.remove()
-          this.progressSmoothEvent = null
+      },
+      onComplete: () => {
+        // Only execute completion logic when real loading is also complete
+        if (this.loadingComplete) {
           this.loadComplete()
         }
       }
@@ -439,55 +377,16 @@ export class LoadingScene extends Phaser.Scene {
       // Force LINEAR filtering on ALL loaded textures to reduce pixelation from large assets
       this.applyLinearFilteringToAllTextures()
       
-      // Switch to title scene after 0.8 seconds for snappier UX
-      this.time.delayedCall(800, () => {
+      // Switch to title scene after 1.5 seconds
+      this.time.delayedCall(1500, () => {
         this.scene.start('TitleScene')
       })
     })
   }
 
-  forceCompleteLoading(reason = 'manual') {
-    this.loadingComplete = true
-    this.actualProgress = 1
-    // If smooth loop exists, let it complete naturally; otherwise, finish now
-    if (!this.progressSmoothEvent) {
-      this.displayProgress = 1
-      this.updateProgressBar(1)
-      this.loadComplete()
-    }
-  }
-
-  shutdown() {
-    // Cleanup timers/tweens to avoid leaks across scene transitions
-    if (this.progressSmoothEvent) {
-      this.progressSmoothEvent.remove()
-      this.progressSmoothEvent = null
-    }
-    if (this.watchdog) {
-      this.watchdog.remove()
-      this.watchdog = null
-    }
-    if (this.stallDetector) {
-      this.stallDetector.remove()
-      this.stallDetector = null
-    }
-    if (this.assetTimeouts) {
-      Object.values(this.assetTimeouts).forEach(timeout => clearTimeout(timeout))
-      this.assetTimeouts = null
-    }
-    if (this.tipTimer) {
-      this.tipTimer.remove()
-      this.tipTimer = null
-    }
-    if (this.jerryBounceAnimation) {
-      this.jerryBounceAnimation.stop()
-      this.jerryBounceAnimation = null
-    }
-  }
-
   applyLinearFilteringToAllTextures() {
     let textureCount = 0
-    
+
     // Iterate through all loaded textures
     this.textures.each((texture) => {
       if (texture.key && texture.key !== '__DEFAULT' && texture.key !== '__MISSING') {
@@ -495,7 +394,7 @@ export class LoadingScene extends Phaser.Scene {
         if (texture.source && texture.source[0]) {
           texture.source[0].setFilter(1) // 1 = Phaser.Textures.FilterMode.LINEAR
           textureCount++
-          
+
           // Also set scaleMode for WebGL rendering
           if (texture.source[0].scaleMode !== undefined) {
             texture.source[0].scaleMode = 1 // LINEAR
@@ -503,8 +402,13 @@ export class LoadingScene extends Phaser.Scene {
         }
       }
     })
-    
+
     console.log(`✅ Applied LINEAR filtering to ${textureCount} textures for smooth scaling`)
+
+    // Utiliser l'AssetManager pour les optimisations supplémentaires
+    if (this.assetManager) {
+      this.assetManager.postLoadOptimization()
+    }
   }
 
 }

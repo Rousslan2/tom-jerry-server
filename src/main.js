@@ -66,13 +66,6 @@ const config = {
   type: Phaser.WEBGL, // Force WebGL for better quality and performance
   width: gameWidth,
   height: gameHeight,
-  resolution: Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2),
-  fps: {
-    target: isMobile ? 60 : 60,
-    min: 30,
-    forceSetTimeOut: false,
-    deltaHistory: 10
-  },
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,

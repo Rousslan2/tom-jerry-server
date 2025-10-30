@@ -168,7 +168,7 @@ export class VictoryScene extends Phaser.Scene {
     // Animate score counting up
     let currentScore = 0
     const scoreIncrement = Math.ceil(this.finalScore / 30) // Count up in 30 frames
-    this.scoreTimer = this.time.addEvent({
+    const scoreTimer = this.time.addEvent({
       delay: 50,
       repeat: 29,
       callback: () => {
@@ -468,13 +468,6 @@ export class VictoryScene extends Phaser.Scene {
       console.log('📊 Online stats updated:', stats)
     } catch (error) {
       console.error('❌ Failed to update online stats:', error)
-    }
-  }
-
-  shutdown() {
-    if (this.scoreTimer) {
-      this.scoreTimer.remove()
-      this.scoreTimer = null
     }
   }
 }
