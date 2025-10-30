@@ -4196,6 +4196,10 @@ export class GameScene extends Phaser.Scene {
       const offset = newSlot.positionOffsets[emptyPos]
       const newY = newSlot.y + offset.y
 
+      // Set higher depth during animation to prevent overlap issues
+      const originalDepth = item.depth
+      item.setDepth(200)
+
       // Animate falling with bounce
       this.tweens.add({
         targets: item,
@@ -4203,6 +4207,8 @@ export class GameScene extends Phaser.Scene {
         duration: 400,
         ease: 'Bounce.easeOut',
         onComplete: () => {
+          // Restore original depth
+          item.setDepth(originalDepth)
           // Check if this creates a new match
           this.checkForElimination(fromRow + 1, fromCol)
         }
