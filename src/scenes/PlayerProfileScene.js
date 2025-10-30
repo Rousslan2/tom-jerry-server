@@ -152,7 +152,6 @@ export class PlayerProfileScene extends Phaser.Scene {
     const modeStats = [
       { label: 'Classic Mode:', value: `${this.playerStats.classicGamesWon}/${this.playerStats.classicGamesPlayed}` },
       { label: 'Time Attack:', value: `${this.playerStats.timeAttackGamesWon}/${this.playerStats.timeAttackGamesPlayed}` },
-      { label: 'Endless Mode:', value: `${this.playerStats.endlessGamesWon}/${this.playerStats.endlessGamesPlayed}` },
       { label: 'Zen Mode:', value: `${this.playerStats.zenGamesWon}/${this.playerStats.zenGamesPlayed}` }
     ]
 
