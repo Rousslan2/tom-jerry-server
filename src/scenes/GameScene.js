@@ -2843,7 +2843,7 @@ export class GameScene extends Phaser.Scene {
 
     // 🌊 CASCADE MODE: After elimination, trigger cascade effect
     if (this.selectedGameMode === 'cascade') {
-      this.time.delayedCall(500, () => {
+      this.time.delayedCall(800, () => {
         this.triggerCascadeEffect(row, col)
       })
     }
@@ -4120,8 +4120,8 @@ export class GameScene extends Phaser.Scene {
     const cols = gameConfig.gridCols.value
     let cascadeTriggered = false
 
-    // Check all slots for items that can fall
-    for (let r = 0; r < rows; r++) {
+    // Check all slots for items that can fall (starting from bottom up)
+    for (let r = rows - 2; r >= 0; r--) { // Start from second-to-last row
       for (let c = 0; c < cols; c++) {
         const gridCell = this.gridData[r][c]
 
@@ -4170,20 +4170,45 @@ export class GameScene extends Phaser.Scene {
     const emptyPos = belowCell.positions.findIndex(pos => pos === null)
 
     if (emptyPos !== -1) {
-      // Move item to new position
-      this.moveItemToPosition(item, fromRow + 1, fromCol, emptyPos)
+      // Remove from current position
+      const oldGridCell = this.gridData[fromRow][fromCol]
+      oldGridCell.positions[fromPosition] = null
+      const itemIndex = oldGridCell.items.indexOf(item)
+      if (itemIndex > -1) {
+        oldGridCell.items.splice(itemIndex, 1)
+      }
 
-      // Animate falling
+      // Add to new position
+      const newGridCell = this.gridData[fromRow + 1][fromCol]
+      item.gridRow = fromRow + 1
+      item.gridCol = fromCol
+      item.positionIndex = emptyPos
+
+      newGridCell.positions[emptyPos] = item.itemType
+      newGridCell.items.push(item)
+
+      // Update item position
+      const newSlot = this.gridSlots[fromRow + 1][fromCol]
+      const offset = newSlot.positionOffsets[emptyPos]
+      const newY = newSlot.y + offset.y
+
+      // Animate falling with bounce
       this.tweens.add({
         targets: item,
-        y: item.y + this.gridSlots[fromRow + 1][fromCol].height / 3, // Fall distance
-        duration: 300,
-        ease: 'Power2',
+        y: newY,
+        duration: 400,
+        ease: 'Bounce.easeOut',
         onComplete: () => {
           // Check if this creates a new match
           this.checkForElimination(fromRow + 1, fromCol)
         }
       })
+
+      // Update position indicators
+      this.updatePositionIndicator(fromRow, fromCol, fromPosition, null)
+      this.updatePositionIndicator(fromRow + 1, fromCol, emptyPos, item.itemType)
+
+      console.log(`🌊 Item fell from (${fromRow},${fromCol}) to (${fromRow + 1},${fromCol})`)
     }
   }
 }
