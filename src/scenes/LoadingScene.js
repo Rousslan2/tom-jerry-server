@@ -11,13 +11,14 @@ export class LoadingScene extends Phaser.Scene {
   preload() {
     // Load saved settings from localStorage
     SettingsScene.loadSettings()
-    
+
     // Setup loading progress UI
     this.setupLoadingProgressUI(this)
-    
+
     // Setup resource loading event listeners
     this.load.on('progress', (v) => {
       this.actualProgress = v
+      this.lastProgressTime = Date.now() // Track last progress update time
       // Do not update UI directly here; a smoother loop will lerp displayProgress
     })
     this.load.on('complete', this.onRealLoadComplete, this)
@@ -29,15 +30,34 @@ export class LoadingScene extends Phaser.Scene {
         this.forceCompleteLoading('too_many_errors')
       }
     })
-    
+
     // Ensure loading progress starts displaying from 0
     this.actualProgress = 0
     this.displayProgress = 0
     this.loadingComplete = false
-    
+    this.lastProgressTime = Date.now() // Initialize progress tracking
+
     // Load asset pack by type
     // Use absolute path to be robust on different base URLs
     this.load.pack('assetPack', '/assets/asset-pack.json')
+
+    // Add a fallback timeout for individual slow-loading assets
+    this.assetTimeouts = {}
+    this.load.on('filecomplete', (key) => {
+      if (this.assetTimeouts[key]) {
+        clearTimeout(this.assetTimeouts[key])
+        delete this.assetTimeouts[key]
+      }
+    })
+
+    // Set individual timeouts for critical assets
+    const criticalAssets = ['jerry_head', 'game_title', 'title_background']
+    criticalAssets.forEach(key => {
+      this.assetTimeouts[key] = setTimeout(() => {
+        console.warn(`⏰ Asset ${key} loading timeout - continuing without it`)
+        delete this.assetTimeouts[key]
+      }, 3000) // 3 second timeout per asset
+    })
 
     // Detailed progress per file for diagnostics
     this.load.on('fileprogress', (file, value) => {
@@ -47,11 +67,23 @@ export class LoadingScene extends Phaser.Scene {
       }
     })
 
-    // Watchdog: if loading hangs, force completion after 10s
-    this.watchdog = this.time.delayedCall(10000, () => {
+    // Watchdog: if loading hangs, force completion after 15s (increased from 10s)
+    this.watchdog = this.time.delayedCall(15000, () => {
       if (!this.loadingComplete) {
         console.warn('⏱️ Loading watchdog triggered — forcing completion')
         this.forceCompleteLoading('watchdog_timeout')
+      }
+    })
+
+    // Progress stall detector: if no progress for 8 seconds, force completion (increased from 5s)
+    this.stallDetector = this.time.addEvent({
+      delay: 1000, // Check every second
+      loop: true,
+      callback: () => {
+        if (!this.loadingComplete && Date.now() - this.lastProgressTime > 8000) {
+          console.warn('⏸️ Loading progress stalled — forcing completion')
+          this.forceCompleteLoading('progress_stall')
+        }
       }
     })
   }
@@ -434,6 +466,14 @@ export class LoadingScene extends Phaser.Scene {
     if (this.watchdog) {
       this.watchdog.remove()
       this.watchdog = null
+    }
+    if (this.stallDetector) {
+      this.stallDetector.remove()
+      this.stallDetector = null
+    }
+    if (this.assetTimeouts) {
+      Object.values(this.assetTimeouts).forEach(timeout => clearTimeout(timeout))
+      this.assetTimeouts = null
     }
     if (this.tipTimer) {
       this.tipTimer.remove()
