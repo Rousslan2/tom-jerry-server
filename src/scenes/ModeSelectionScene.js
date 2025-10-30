@@ -131,8 +131,8 @@ export class ModeSelectionScene extends Phaser.Scene {
   createSinglePlayerButton() {
     const screenWidth = this.cameras.main.width
     const screenHeight = this.cameras.main.height
-    
-    const buttonY = screenHeight * 0.45
+
+    const buttonY = screenHeight * 0.40
     
     // Button background
     const buttonBg = this.add.graphics()
