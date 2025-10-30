@@ -856,19 +856,19 @@ export class GameScene extends Phaser.Scene {
   createPauseButton() {
     const screenWidth = this.cameras.main.width
     const screenHeight = this.cameras.main.height
-    
+
     // Cute pause button - orange gradient
     this.pauseButtonBg = this.add.graphics()
     this.pauseButtonBg.fillGradientStyle(0xFF8C00, 0xFF8C00, 0xFFA500, 0xFFA500, 0.95)  // Slightly increase opacity
     this.pauseButtonBg.fillRoundedRect(screenWidth - 120, 100, 100, 45, 22)
-    
+
     // Add cute white border and shadow effect
     this.pauseButtonBg.lineStyle(3, 0xFFFFFF, 0.95)
     this.pauseButtonBg.strokeRoundedRect(screenWidth - 120, 100, 100, 45, 22)
     this.pauseButtonBg.setDepth(2000) // Ensure UI is on top layer
-    
+
     this.pauseButtonBg.setInteractive(new Phaser.Geom.Rectangle(screenWidth - 120, 100, 100, 45), Phaser.Geom.Rectangle.Contains)
-    
+
     this.pauseButtonText = this.add.text(screenWidth - 70, 122, '⏸️ PAUSE', {
       fontSize: `${window.getResponsiveFontSize(16)}px`,
       fontFamily: window.getGameFont(),  // Cute font
@@ -878,7 +878,7 @@ export class GameScene extends Phaser.Scene {
       align: 'center',
       fontStyle: 'bold'
     }).setOrigin(0.5, 0.5).setDepth(2100)
-    
+
     // Add button hover effect - only apply scaling to text, avoid graphics distortion
     this.pauseButtonBg.on('pointerover', () => {
       this.tweens.add({
@@ -891,7 +891,7 @@ export class GameScene extends Phaser.Scene {
       // Provide visual feedback through color change, not scaling graphics
       this.pauseButtonText.setTint(0xFFFF88)
     })
-    
+
     this.pauseButtonBg.on('pointerout', () => {
       this.tweens.add({
         targets: this.pauseButtonText,
@@ -902,18 +902,74 @@ export class GameScene extends Phaser.Scene {
       })
       this.pauseButtonText.clearTint()
     })
-    
+
     this.pauseButtonBg.on('pointerdown', () => {
       this.pauseButtonText.setScale(0.95)
       this.pauseButtonText.setTint(0xCCCC44)
     })
-    
+
     this.pauseButtonBg.on('pointerup', () => {
       this.pauseButtonText.setScale(1.1)
       this.pauseButtonText.setTint(0xFFFF88)
       this.sound.play('ui_click', { volume: audioConfig.sfxVolume.value })
       this.scene.pause()
       this.scene.launch('PauseScene')
+    })
+
+    // 💡 HINT BUTTON - positioned below pause button
+    this.hintButtonBg = this.add.graphics()
+    this.hintButtonBg.fillGradientStyle(0x4169E1, 0x4169E1, 0x6495ED, 0x6495ED, 0.95)  // Blue gradient
+    this.hintButtonBg.fillRoundedRect(screenWidth - 120, 160, 100, 45, 22)
+
+    this.hintButtonBg.lineStyle(3, 0xFFFFFF, 0.95)
+    this.hintButtonBg.strokeRoundedRect(screenWidth - 120, 160, 100, 45, 22)
+    this.hintButtonBg.setDepth(2000)
+
+    this.hintButtonBg.setInteractive(new Phaser.Geom.Rectangle(screenWidth - 120, 160, 100, 45), Phaser.Geom.Rectangle.Contains)
+
+    this.hintButtonText = this.add.text(screenWidth - 70, 182, '💡 HINT', {
+      fontSize: `${window.getResponsiveFontSize(16)}px`,
+      fontFamily: window.getGameFont(),
+      color: '#FFFFFF',
+      stroke: '#1E90FF',
+      strokeThickness: 2,
+      align: 'center',
+      fontStyle: 'bold'
+    }).setOrigin(0.5, 0.5).setDepth(2100)
+
+    // Hint button hover effects
+    this.hintButtonBg.on('pointerover', () => {
+      this.tweens.add({
+        targets: this.hintButtonText,
+        scaleX: 1.1,
+        scaleY: 1.1,
+        duration: 100,
+        ease: 'Back.easeOut'
+      })
+      this.hintButtonText.setTint(0xFFFF88)
+    })
+
+    this.hintButtonBg.on('pointerout', () => {
+      this.tweens.add({
+        targets: this.hintButtonText,
+        scaleX: 1,
+        scaleY: 1,
+        duration: 100,
+        ease: 'Back.easeOut'
+      })
+      this.hintButtonText.clearTint()
+    })
+
+    this.hintButtonBg.on('pointerdown', () => {
+      this.hintButtonText.setScale(0.95)
+      this.hintButtonText.setTint(0xCCCC44)
+    })
+
+    this.hintButtonBg.on('pointerup', () => {
+      this.hintButtonText.setScale(1.1)
+      this.hintButtonText.setTint(0xFFFF88)
+      this.sound.play('ui_click', { volume: audioConfig.sfxVolume.value })
+      this.showHint()
     })
   }
 
@@ -3067,12 +3123,12 @@ export class GameScene extends Phaser.Scene {
     let possibleMatches = 0
     const rows = gameConfig.gridRows.value
     const cols = gameConfig.gridCols.value
-    
+
     // Strategy 1: Check slots with 2 same items that need 1 more
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         const gridCell = this.gridData[row][col]
-        
+
         // Count items by type in this slot
         const typeCounts = {}
         gridCell.positions.forEach(itemType => {
@@ -3080,7 +3136,7 @@ export class GameScene extends Phaser.Scene {
             typeCounts[itemType] = (typeCounts[itemType] || 0) + 1
           }
         })
-        
+
         // If we have 2 of same type, check if we can complete the match
         Object.keys(typeCounts).forEach(itemType => {
           if (typeCounts[itemType] === 2) {
@@ -3092,13 +3148,13 @@ export class GameScene extends Phaser.Scene {
         })
       }
     }
-    
+
     // Strategy 2: Check slots with empty space that can receive matching items
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         const gridCell = this.gridData[row][col]
         const emptyPositions = gridCell.positions.filter(p => p === null).length
-        
+
         if (emptyPositions > 0) {
           // This slot has space, check what can be moved here
           const availableTypes = this.getAvailableItemTypes()
@@ -3112,8 +3168,198 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
-    
+
     return possibleMatches
+  }
+
+  // 💡 Show a hint by highlighting a possible move
+  showHint() {
+    // Don't show hints if game is over
+    if (this.gameOver || this.levelComplete) {
+      return
+    }
+
+    // Clear any existing hints first
+    this.clearHints()
+
+    const rows = gameConfig.gridRows.value
+    const cols = gameConfig.gridCols.value
+
+    // Look for slots with 2 same items that can be completed
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const gridCell = this.gridData[row][col]
+
+        // Count items by type in this slot
+        const typeCounts = {}
+        gridCell.positions.forEach((itemType, index) => {
+          if (itemType && itemType !== 'anvil_obstacle' && itemType !== 'safe_obstacle' && itemType !== 'piano_obstacle') {
+            typeCounts[itemType] = (typeCounts[itemType] || 0) + 1
+          }
+        })
+
+        // If we have 2 of same type, check if we can complete the match
+        for (let itemType in typeCounts) {
+          if (typeCounts[itemType] === 2) {
+            // Check if this item type exists elsewhere on the board
+            if (this.itemExistsOnBoard(itemType, row, col)) {
+              // Found a hint! Highlight the slot with 2 items
+              this.highlightHintSlot(row, col, itemType)
+              return // Show only one hint at a time
+            }
+          }
+        }
+      }
+    }
+
+    // If no direct matches found, show a message
+    this.showNoHintMessage()
+  }
+
+  // 💡 Highlight a slot as a hint
+  highlightHintSlot(row, col, itemType) {
+    const slot = this.gridSlots[row][col]
+
+    // Create hint glow effect
+    const hintGlow = this.add.graphics()
+    hintGlow.lineStyle(6, 0xFFD700, 0.9) // Gold glow
+    hintGlow.strokeRoundedRect(
+      slot.x - slot.width / 2 - 5,
+      slot.y - slot.height / 2 - 5,
+      slot.width + 10,
+      slot.height + 10,
+      12
+    )
+    hintGlow.setDepth(100)
+
+    // Pulsing animation
+    this.tweens.add({
+      targets: hintGlow,
+      alpha: 0.3,
+      scaleX: 1.05,
+      scaleY: 1.05,
+      duration: 800,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: 3,
+      onComplete: () => {
+        hintGlow.destroy()
+      }
+    })
+
+    // Store hint for clearing
+    if (!this.activeHints) {
+      this.activeHints = []
+    }
+    this.activeHints.push(hintGlow)
+
+    // Show hint message
+    this.showHintMessage(`💡 Try matching ${itemType.replace('_', ' ')}!`)
+
+    // Play hint sound
+    this.sound.play('item_pickup', { volume: audioConfig.sfxVolume.value * 0.7 })
+  }
+
+  // 💬 Show hint message
+  showHintMessage(message) {
+    const screenWidth = this.cameras.main.width
+    const screenHeight = this.cameras.main.height
+
+    const hintText = this.add.text(screenWidth / 2, screenHeight / 2 - 100, message, {
+      fontSize: `${window.getResponsiveFontSize(24)}px`,
+      fontFamily: window.getGameFont(),
+      color: '#FFD700',
+      stroke: '#000000',
+      strokeThickness: 4,
+      align: 'center',
+      fontStyle: 'bold'
+    }).setOrigin(0.5, 0.5)
+      .setDepth(10001)
+      .setAlpha(0)
+      .setScale(0)
+
+    // Pop in animation
+    this.tweens.add({
+      targets: hintText,
+      alpha: 1,
+      scale: 1.2,
+      duration: 300,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        // Stay for 3 seconds
+        this.time.delayedCall(3000, () => {
+          this.tweens.add({
+            targets: hintText,
+            alpha: 0,
+            scale: 0.5,
+            duration: 300,
+            ease: 'Back.easeIn',
+            onComplete: () => {
+              hintText.destroy()
+            }
+          })
+        })
+      }
+    })
+  }
+
+  // 😔 Show message when no hints available
+  showNoHintMessage() {
+    const screenWidth = this.cameras.main.width
+    const screenHeight = this.cameras.main.height
+
+    const noHintText = this.add.text(screenWidth / 2, screenHeight / 2 - 100, '😔 No hints available right now!', {
+      fontSize: `${window.getResponsiveFontSize(24)}px`,
+      fontFamily: window.getGameFont(),
+      color: '#FF6347',
+      stroke: '#000000',
+      strokeThickness: 4,
+      align: 'center',
+      fontStyle: 'bold'
+    }).setOrigin(0.5, 0.5)
+      .setDepth(10001)
+      .setAlpha(0)
+      .setScale(0)
+
+    // Pop in animation
+    this.tweens.add({
+      targets: noHintText,
+      alpha: 1,
+      scale: 1.2,
+      duration: 300,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        // Stay for 2 seconds
+        this.time.delayedCall(2000, () => {
+          this.tweens.add({
+            targets: noHintText,
+            alpha: 0,
+            scale: 0.5,
+            duration: 300,
+            ease: 'Back.easeIn',
+            onComplete: () => {
+              noHintText.destroy()
+            }
+          })
+        })
+      }
+    })
+
+    // Play different sound for no hints
+    this.sound.play('ui_click', { volume: audioConfig.sfxVolume.value * 0.5 })
+  }
+
+  // 🧹 Clear all active hints
+  clearHints() {
+    if (this.activeHints) {
+      this.activeHints.forEach(hint => {
+        if (hint && hint.active) {
+          this.tweens.killTweensOf(hint)
+          hint.destroy()
+        }
+      })
+      this.activeHints = []
+    }
   }
   
   // 🔎 Check if item type exists anywhere on board (excluding specific slot)
@@ -3260,25 +3506,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   checkGameEnd() {
-    // 🎮 Endless/Zen mode - no game over conditions except target completion
+    // 🎮 Endless/Zen mode - no game over conditions, no victory conditions either!
     if (this.selectedGameMode === 'endless' || this.selectedGameMode === 'zen') {
-      // Check if targets met (optional victory for these modes)
-      const target1Met = this.eliminatedCounts[this.levelTargets[0].type] >= this.levelTargets[0].count
-      const target2Met = this.eliminatedCounts[this.levelTargets[1].type] >= this.levelTargets[1].count
-      const target3Met = this.eliminatedCounts[this.levelTargets[2].type] >= this.levelTargets[2].count
-      const victoryConditionMet = target1Met && target2Met && target3Met
-      
-      if (victoryConditionMet && !this.levelComplete) {
-        this.levelComplete = true
-        this.sound.play('level_complete', { volume: audioConfig.sfxVolume.value })
-        this.scene.launch('VictoryScene', { 
-          score: this.score,
-          moves: this.currentMoves,
-          maxMoves: this.currentMoves,
-          mode: this.selectedGameMode
-        })
-      }
-      return // No move limit in these modes
+      // Pure relaxation mode - no win/lose conditions
+      // Just keep playing forever!
+      return
     }
     
     // 🎯 Check victory conditions using random targets!
