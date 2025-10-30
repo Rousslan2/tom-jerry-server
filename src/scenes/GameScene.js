@@ -1388,14 +1388,33 @@ export class GameScene extends Phaser.Scene {
         }
       })
     } else {
-      // Cartoon-style pop-in animation for normal items - Bigger items for 3-row grid!
+      // 🎬 NEW: Spawn animation similar to obstacles - items fall from sky!
+      // Start from top of screen
+      const startY = -100
+      item.y = startY
+      item.setScale(0.075)
+      item.setAlpha(1)
+
+      // Fall from sky with bounce
       this.tweens.add({
         targets: item,
-        scale: 0.075,  // 40% bigger for better visibility with 3-row grid (was 0.053 for 5-row)
-        alpha: 1,      // Completely opaque
-        duration: 300,
-        ease: 'Back.easeOut.config(2)',  // Elastic effect
-        delay: Phaser.Math.Between(0, 200)  // Random delay to stagger item appearances
+        y: slot.y + offset.y,
+        duration: 600,
+        ease: 'Bounce.easeOut',
+        delay: Phaser.Math.Between(0, 300)
+      })
+
+      // Rotate while falling
+      this.tweens.add({
+        targets: item,
+        rotation: Math.PI * 2,
+        duration: 600,
+        ease: 'Linear',
+        delay: Phaser.Math.Between(0, 300),
+        onComplete: () => {
+          // Impact effect when landing!
+          this.createObstacleImpactEffect(item.x, item.y)
+        }
       })
     }
     
