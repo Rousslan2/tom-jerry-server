@@ -738,6 +738,17 @@ export class GameScene extends Phaser.Scene {
         fontStyle: 'bold'
       }).setOrigin(0.5, 0.5).setDepth(2100)
 
+      // Add cascade score display
+      this.cascadeScoreText = this.add.text(screenWidth * 0.15, 110, 'Cascade: 0 | Max: 0', {
+        fontSize: `${window.getResponsiveFontSize(12)}px`,
+        fontFamily: window.getGameFont(),
+        color: '#FFD700',
+        stroke: '#000000',
+        strokeThickness: 2,
+        align: 'center',
+        fontStyle: 'bold'
+      }).setOrigin(0.5, 0.5).setDepth(2100)
+
       return
     }
 
