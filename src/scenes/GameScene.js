@@ -3946,11 +3946,83 @@ export class GameScene extends Phaser.Scene {
   }
 
   highlightAvailableSlots() {
-    // Remove highlight effect, keep original style
+    // Clear any existing highlights first
+    this.clearSlotHighlights()
+
+    const rows = gameConfig.gridRows.value
+    const cols = gameConfig.gridCols.value
+
+    // Create highlights for slots with at least one empty position
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const gridCell = this.gridData[row][col]
+        const hasEmptyPosition = gridCell.positions.some(pos => pos === null)
+
+        if (hasEmptyPosition) {
+          // Green glow for available slots
+          const slot = this.gridSlots[row][col]
+          const highlight = this.add.graphics()
+          highlight.lineStyle(4, 0x00FF00, 0.8)
+          highlight.strokeRoundedRect(
+            slot.x - slot.width / 2,
+            slot.y - slot.height / 2,
+            slot.width,
+            slot.height,
+            8
+          )
+          highlight.setDepth(45)
+
+          // Pulse animation
+          this.tweens.add({
+            targets: highlight,
+            alpha: 0.3,
+            scaleX: 1.05,
+            scaleY: 1.05,
+            duration: 500,
+            ease: 'Sine.easeInOut',
+            yoyo: true,
+            repeat: -1
+          })
+
+          if (!this.slotHighlights) {
+            this.slotHighlights = []
+          }
+          this.slotHighlights.push(highlight)
+        } else {
+          // Red X for full slots
+          const slot = this.gridSlots[row][col]
+          const redX = this.add.graphics()
+          redX.lineStyle(6, 0xFF0000, 0.9)
+
+          // Draw X
+          const size = Math.min(slot.width, slot.height) * 0.3
+          redX.strokeLineShape(new Phaser.Geom.Line(
+            slot.x - size, slot.y - size,
+            slot.x + size, slot.y + size
+          ))
+          redX.strokeLineShape(new Phaser.Geom.Line(
+            slot.x + size, slot.y - size,
+            slot.x - size, slot.y + size
+          ))
+          redX.setDepth(45)
+
+          if (!this.slotHighlights) {
+            this.slotHighlights = []
+          }
+          this.slotHighlights.push(redX)
+        }
+      }
+    }
   }
   
   clearSlotHighlights() {
-    // Remove highlight effect, keep original style
+    if (this.slotHighlights) {
+      this.slotHighlights.forEach(highlight => {
+        this.tweens.killTweensOf(highlight)
+        highlight.destroy()
+      })
+      this.slotHighlights = []
+    }
   }
   
   // This method has already been defined earlier, remove duplicate definition
