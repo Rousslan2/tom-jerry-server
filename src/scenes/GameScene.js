@@ -4768,30 +4768,9 @@ export class GameScene extends Phaser.Scene {
   createBossBattleUI() {
     const screenWidth = this.cameras.main.width
 
-    // Boss health bar (eliminations needed)
-    this.bossHealthBg = this.add.graphics()
-    this.bossHealthBg.fillStyle(0x333333, 0.8)
-    this.bossHealthBg.fillRoundedRect(screenWidth * 0.4, 10, screenWidth * 0.4, 30, 5)
-    this.bossHealthBg.setDepth(2000)
-
-    this.bossHealthBar = this.add.graphics()
-    this.bossHealthBar.fillStyle(0xFF0000, 1)
-    this.bossHealthBar.fillRoundedRect(screenWidth * 0.4 + 2, 12, screenWidth * 0.4 - 4, 26, 3)
-    this.bossHealthBar.setDepth(2010)
-
-    this.bossHealthText = this.add.text(screenWidth * 0.5, 25, `👹 BOSS: ${this.bossBattle.adjacentEliminations}/${this.bossBattle.requiredEliminations}`, {
-      fontSize: `${window.getResponsiveFontSize(16)}px`,
-      fontFamily: window.getGameFont(),
-      color: '#FFFFFF',
-      stroke: '#000000',
-      strokeThickness: 2,
-      align: 'center',
-      fontStyle: 'bold'
-    }).setOrigin(0.5, 0.5).setDepth(2020)
-
-    // Boss battle timer
-    this.bossTimerText = this.add.text(screenWidth * 0.8, 25, `⏰ ${this.bossBattle.timeRemaining}s`, {
-      fontSize: `${window.getResponsiveFontSize(16)}px`,
+    // Boss battle timer only
+    this.bossTimerText = this.add.text(screenWidth * 0.5, 25, `⏰ ${this.bossBattle.timeRemaining}s`, {
+      fontSize: `${window.getResponsiveFontSize(20)}px`,
       fontFamily: window.getGameFont(),
       color: '#FFFFFF',
       stroke: '#000000',
@@ -4805,18 +4784,6 @@ export class GameScene extends Phaser.Scene {
   updateBossBattleUI() {
     if (!this.bossBattle.active) return
 
-    const screenWidth = this.cameras.main.width
-
-    // Update health bar
-    const healthPercent = this.bossBattle.adjacentEliminations / this.bossBattle.requiredEliminations
-    const barWidth = (screenWidth * 0.4 - 4) * healthPercent
-
-    this.bossHealthBar.clear()
-    this.bossHealthBar.fillStyle(0xFF0000, 1)
-    this.bossHealthBar.fillRoundedRect(screenWidth * 0.4 + 2, 12, barWidth, 26, 3)
-
-    // Update text
-    this.bossHealthText.setText(`👹 BOSS: ${this.bossBattle.adjacentEliminations}/${this.bossBattle.requiredEliminations}`)
     this.bossTimerText.setText(`⏰ ${this.bossBattle.timeRemaining}s`)
 
     // Color coding for timer
@@ -5200,12 +5167,20 @@ export class GameScene extends Phaser.Scene {
     // Boss laughs
     this.sound.play('tom_evil_laugh', { volume: audioConfig.sfxVolume.value })
 
-    // Show defeat message
+    // Show defeat message and trigger game over
     this.showBossDefeatMessage()
 
-    // Clear boss battle after delay
+    // Trigger game over after delay
     this.time.delayedCall(3000, () => {
       this.clearBossBattle()
+      this.gameOver = true
+      this.sound.play('game_over', { volume: audioConfig.sfxVolume.value })
+      this.scene.launch('GameOverScene', {
+        score: this.score,
+        moves: this.currentMoves,
+        mode: this.gameMode,
+        reason: 'Boss Battle Failed!'
+      })
     })
   }
 
@@ -5261,9 +5236,6 @@ export class GameScene extends Phaser.Scene {
 
   // 👹 Clear boss battle UI
   clearBossBattleUI() {
-    if (this.bossHealthBg) this.bossHealthBg.destroy()
-    if (this.bossHealthBar) this.bossHealthBar.destroy()
-    if (this.bossHealthText) this.bossHealthText.destroy()
     if (this.bossTimerText) this.bossTimerText.destroy()
     if (this.bossOverlay) this.bossOverlay.destroy()
   }
