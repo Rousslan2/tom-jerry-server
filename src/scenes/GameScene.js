@@ -4301,7 +4301,21 @@ export class GameScene extends Phaser.Scene {
           const isObstacle = item.itemType === 'anvil_obstacle' || item.itemType === 'safe_obstacle' || item.itemType === 'piano_obstacle'
           if ((this.selectedGameMode === 'cascade' || wasInteractive) && !isObstacle) {
             console.log(`🌊 CASCADE FALL: Making ${item.itemType} interactive at (${fromRow + 1},${fromCol})`)
-            item.setInteractive({ draggable: true })
+
+            // Remove any existing interactivity first
+            if (item.input && item.input.enabled) {
+              item.disableInteractive()
+            }
+
+            // Set up fresh interactivity
+            item.setInteractive({ draggable: true, useHandCursor: true })
+            console.log(`🌊 CASCADE FALL: ${item.itemType} interactivity enabled:`, item.input ? item.input.enabled : 'no input')
+
+            // Add drag event listeners to verify they're working
+            item.on('dragstart', (pointer) => {
+              console.log(`🌊 DRAG START: ${item.itemType} at (${item.gridRow},${item.gridCol})`)
+            })
+
             // 📱 Re-enhance drag & drop for mobile
             if (this.mobileHelper) {
               this.mobileHelper.enhanceDragAndDrop(item)
@@ -4579,7 +4593,7 @@ export class GameScene extends Phaser.Scene {
 
      // Find empty positions in the top rows to spawn new items
      const emptyPositions = []
-     for (let row = 0; row < Math.min(2, rows); row++) { // Focus on top 2 rows
+     for (let row = 0; row < Math.min(3, rows); row++) { // Focus on top 3 rows for more spawning
        for (let col = 0; col < cols; col++) {
          const gridCell = this.gridData[row][col]
          for (let pos = 0; pos < 3; pos++) {
@@ -4590,9 +4604,9 @@ export class GameScene extends Phaser.Scene {
        }
      }
 
-     // Shuffle and take up to 6 positions to fill
+     // Shuffle and take up to 12 positions to fill (increased from 6)
      Phaser.Utils.Array.Shuffle(emptyPositions)
-     const positionsToFill = emptyPositions.slice(0, Math.min(6, emptyPositions.length))
+     const positionsToFill = emptyPositions.slice(0, Math.min(12, emptyPositions.length))
 
      if (positionsToFill.length === 0) return
 
@@ -4603,7 +4617,7 @@ export class GameScene extends Phaser.Scene {
        this.time.delayedCall(index * 100, () => {
          // Higher chance for target items in cascade mode
          let itemType
-         if (Math.random() < 0.7) { // 70% chance for target items
+         if (Math.random() < 0.8) { // 80% chance for target items (increased from 70%)
            itemType = targetTypes[Phaser.Math.Between(0, targetTypes.length - 1)]
          } else {
            itemType = this.getRandomItemType()
@@ -4706,6 +4720,6 @@ export class GameScene extends Phaser.Scene {
        })
      })
 
-     console.log(`🌊 Spawned ${positionsToFill.length} additional items from top in cascade mode`)
+     console.log(`🌊 Spawned ${positionsToFill.length} additional items from top in cascade mode (increased spawn rate)`)
    }
 }
