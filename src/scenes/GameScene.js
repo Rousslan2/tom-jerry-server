@@ -818,7 +818,7 @@ export class GameScene extends Phaser.Scene {
       this.moveCounterBg.strokeRoundedRect(screenWidth * 0.65, 20, screenWidth * 0.3, 60, 15)
       this.moveCounterBg.setDepth(2000)
 
-      this.moveCounterText = this.add.text(screenWidth * 0.8, 50, `⚡ Rush: 0:30`, {
+      this.moveCounterText = this.add.text(screenWidth * 0.8, 50, `⚡ 0:30`, {
         fontSize: `${window.getResponsiveFontSize(18)}px`,
         fontFamily: window.getGameFont(),
         color: '#00FF00', // Start with green
@@ -3172,6 +3172,24 @@ export class GameScene extends Phaser.Scene {
         this.moveCounterText.setText(`⚠️ Moves: ${this.currentMoves}/${levelConfig.maxMoves.value} ⚠️`)
       }
     }
+
+    // ⚡ Rush mode - update timer display
+    if (this.selectedGameMode === 'rush' && this.moveCounterText) {
+      const minutes = Math.floor(this.rushTimeRemaining / 60)
+      const seconds = this.rushTimeRemaining % 60
+      const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`
+
+      this.moveCounterText.setText(`⚡ Rush: ${timeString}`)
+
+      // Color coding based on time remaining
+      if (this.rushTimeRemaining <= 10) {
+        this.moveCounterText.setColor('#FF0000') // Red - critical!
+      } else if (this.rushTimeRemaining <= 20) {
+        this.moveCounterText.setColor('#FF6347') // Orange - warning
+      } else {
+        this.moveCounterText.setColor('#00FF00') // Green - good!
+      }
+    }
   }
 
   updateScoreDisplay() {
@@ -3866,7 +3884,7 @@ export class GameScene extends Phaser.Scene {
       const seconds = this.rushTimeRemaining % 60
       const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`
 
-      this.moveCounterText.setText(`⚡ Rush: ${timeString}`)
+      this.moveCounterText.setText(`⚡ ${timeString}`)
 
       // Color coding based on time remaining
       if (this.rushTimeRemaining <= 10) {
