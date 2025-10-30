@@ -808,7 +808,7 @@ export class GameScene extends Phaser.Scene {
       return
     }
 
-    // ⚡ For Rush mode, show timer instead of moves counter
+    // ⚡ For Rush mode, show unlimited moves
     if (this.selectedGameMode === 'rush') {
       this.moveCounterBg = this.add.graphics()
       this.moveCounterBg.fillGradientStyle(0xFFD700, 0xFFD700, 0xFFA500, 0xFFA500, 0.95) // Gold gradient
@@ -818,10 +818,10 @@ export class GameScene extends Phaser.Scene {
       this.moveCounterBg.strokeRoundedRect(screenWidth * 0.65, 20, screenWidth * 0.3, 60, 15)
       this.moveCounterBg.setDepth(2000)
 
-      this.moveCounterText = this.add.text(screenWidth * 0.8, 50, `⚡ 0:30`, {
+      this.moveCounterText = this.add.text(screenWidth * 0.8, 50, `⚡ UNLIMITED`, {
         fontSize: `${window.getResponsiveFontSize(18)}px`,
         fontFamily: window.getGameFont(),
-        color: '#00FF00', // Start with green
+        color: '#00FF00', // Green for unlimited
         stroke: '#000000',
         strokeThickness: 2,
         align: 'center',
@@ -1361,6 +1361,7 @@ export class GameScene extends Phaser.Scene {
     // Set item position directly without animation
     item.setScale(0.075)
     item.setAlpha(1)
+    item.x = slot.x + offset.x
     item.y = slot.y + offset.y
     
     // Store item information
@@ -3116,22 +3117,10 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // ⚡ Rush mode - update timer display
+    // ⚡ Rush mode - keep unlimited display
     if (this.selectedGameMode === 'rush' && this.moveCounterText) {
-      const minutes = Math.floor(this.rushTimeRemaining / 60)
-      const seconds = this.rushTimeRemaining % 60
-      const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`
-
-      this.moveCounterText.setText(`⚡ Rush: ${timeString}`)
-
-      // Color coding based on time remaining
-      if (this.rushTimeRemaining <= 10) {
-        this.moveCounterText.setColor('#FF0000') // Red - critical!
-      } else if (this.rushTimeRemaining <= 20) {
-        this.moveCounterText.setColor('#FF6347') // Orange - warning
-      } else {
-        this.moveCounterText.setColor('#00FF00') // Green - good!
-      }
+      this.moveCounterText.setText(`⚡ UNLIMITED`)
+      this.moveCounterText.setColor('#00FF00') // Green for unlimited
     }
   }
 
@@ -3646,10 +3635,46 @@ export class GameScene extends Phaser.Scene {
   }
 
   checkGameEnd() {
-    // 🎮 Endless/Zen/Rush mode - no game over conditions, no victory conditions either!
-    if (this.selectedGameMode === 'endless' || this.selectedGameMode === 'zen' || this.selectedGameMode === 'rush') {
+    // 🎮 Endless/Zen mode - no game over conditions, no victory conditions either!
+    if (this.selectedGameMode === 'endless' || this.selectedGameMode === 'zen') {
       // Pure relaxation mode - no win/lose conditions
       // Just keep playing forever!
+      return
+    }
+
+    // ⚡ Rush mode - no game over from moves, only from time
+    if (this.selectedGameMode === 'rush') {
+      // Only check victory conditions, no move limit
+      const target1Met = this.eliminatedCounts[this.levelTargets[0].type] >= this.levelTargets[0].count
+      const target2Met = this.eliminatedCounts[this.levelTargets[1].type] >= this.levelTargets[1].count
+      const target3Met = this.eliminatedCounts[this.levelTargets[2].type] >= this.levelTargets[2].count
+      const victoryConditionMet = target1Met && target2Met && target3Met
+
+      if (victoryConditionMet && !this.levelComplete) {
+        this.levelComplete = true
+        this.sound.play('level_complete', { volume: audioConfig.sfxVolume.value })
+
+        // Stop timer for Rush mode
+        if (this.rushTimer) {
+          this.rushTimer.remove()
+        }
+
+        // Update player stats
+        this.updatePlayerStats(true) // true = victory
+
+        // 🎮 MULTIPLAYER: If someone wins, opponent loses!
+        if (this.gameMode === 'online') {
+          multiplayerService.sendGameEnd('win')
+        }
+
+        this.scene.launch('VictoryScene', {
+          score: this.score,
+          moves: this.currentMoves,
+          maxMoves: -1, // Unlimited moves
+          mode: this.gameMode,  // 🎮 Pass 'online' or 'single' for stats tracking
+          gameMode: 'rush'
+        })
+      }
       return
     }
     
