@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { screenSize, audioConfig } from '../gameConfig.json'
+import packageJson from '../../package.json'
 
 export class TitleScene extends Phaser.Scene {
   constructor() {
@@ -172,6 +173,7 @@ export class TitleScene extends Phaser.Scene {
   createUI() {
     this.createGameTitle()
     this.createStartButton()
+    this.createVersionDisplay()
   }
 
   createGameTitle() {
@@ -267,6 +269,37 @@ export class TitleScene extends Phaser.Scene {
       this.startButtonText.setScale(1.1)
       this.startGame()
     })
+  }
+
+  createVersionDisplay() {
+    const screenWidth = this.cameras.main.width
+    const screenHeight = this.cameras.main.height
+
+    // Get version from package.json
+    const version = packageJson.version
+
+    // Create version text in bottom right corner
+    this.versionText = this.add.text(screenWidth - 20, screenHeight - 20, `v${version}`, {
+      fontSize: `${window.getResponsiveFontSize(14)}px`,
+      fontFamily: window.getGameFont(),
+      color: '#FFFFFF',
+      stroke: '#000000',
+      strokeThickness: this.isMobile ? 4 : 3,
+      align: 'right',
+      fontStyle: 'bold'
+    }).setOrigin(1, 1).setDepth(1000)
+
+    // Add subtle background for better visibility
+    this.versionBg = this.add.graphics()
+    this.versionBg.fillStyle(0x000000, 0.3)
+    this.versionBg.fillRoundedRect(
+      this.versionText.x - this.versionText.width - 10,
+      this.versionText.y - this.versionText.height - 5,
+      this.versionText.width + 20,
+      this.versionText.height + 10,
+      5
+    )
+    this.versionBg.setDepth(999)
   }
 
   createProfileButton() {
