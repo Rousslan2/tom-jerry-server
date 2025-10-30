@@ -4158,15 +4158,18 @@ export class GameScene extends Phaser.Scene {
     }
 
     // 🌊 CASCADE MODE: Also check bottom row for items that should fall off screen
-    for (let c = 0; c < cols; c++) {
-      const bottomCell = this.gridData[rows - 1][c]
+    // In cascade mode, ALL items in bottom row should fall off screen to create space
+    if (this.selectedGameMode === 'cascade') {
+      for (let c = 0; c < cols; c++) {
+        const bottomCell = this.gridData[rows - 1][c]
 
-      // Check each position in the bottom row
-      for (let pos = 0; pos < 3; pos++) {
-        if (bottomCell.positions[pos] !== null) {
-          // Items in bottom row with empty space below should fall off screen
-          this.makeItemFallOffScreen(rows - 1, c, pos)
-          cascadeTriggered = true
+        // Check each position in the bottom row
+        for (let pos = 0; pos < 3; pos++) {
+          if (bottomCell.positions[pos] !== null) {
+            // Items in bottom row should fall off screen in cascade mode
+            this.makeItemFallOffScreen(rows - 1, c, pos)
+            cascadeTriggered = true
+          }
         }
       }
     }
@@ -4288,14 +4291,21 @@ export class GameScene extends Phaser.Scene {
         if (item && item.active && !item.destroyed) {
           // Restore original depth
           item.setDepth(originalDepth)
-          // Re-enable interactivity if it was enabled before
-          if (wasInteractive) {
+
+          // CRITICAL: Ensure item is properly interactive for cascade mode
+          if (this.selectedGameMode === 'cascade' || wasInteractive) {
             item.setInteractive({ draggable: true })
             // 📱 Re-enhance drag & drop for mobile
             if (this.mobileHelper) {
               this.mobileHelper.enhanceDragAndDrop(item)
             }
           }
+
+          // Force update item properties to ensure it's properly detected
+          item.gridRow = fromRow + 1
+          item.gridCol = fromCol
+          item.positionIndex = targetPos
+
           // Check if this creates a new match
           this.checkForElimination(fromRow + 1, fromCol)
         }
