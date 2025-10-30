@@ -123,6 +123,7 @@ export class ModeSelectionScene extends Phaser.Scene {
     // Create mode selection buttons
     this.createSinglePlayerButton()
     this.createOnlineMultiPlayerButton()
+    this.createProfileButton()
     this.createBackButton()
     this.createSettingsButton()
   }
@@ -220,9 +221,9 @@ export class ModeSelectionScene extends Phaser.Scene {
   createOnlineMultiPlayerButton() {
     const screenWidth = this.cameras.main.width
     const screenHeight = this.cameras.main.height
-    
-    const buttonY = screenHeight * 0.60
-    
+
+    const buttonY = screenHeight * 0.55
+
     // Button background - orange for online
     const buttonBg = this.add.graphics()
     buttonBg.fillGradientStyle(0xFF8C00, 0xFF8C00, 0xFFA500, 0xFFA500, 0.95)
@@ -230,11 +231,11 @@ export class ModeSelectionScene extends Phaser.Scene {
     buttonBg.lineStyle(4, 0xFFFFFF, 0.9)
     buttonBg.strokeRoundedRect(screenWidth / 2 - 200, buttonY - 40, 400, 80, 15)
     buttonBg.setDepth(100)
-    
+
     // Create interaction zone
     const buttonZone = this.add.zone(screenWidth / 2, buttonY, 400, 80).setInteractive()
     buttonZone.setDepth(101)
-    
+
     // Button text
     const buttonText = this.add.text(screenWidth / 2, buttonY, '🌐 ONLINE MULTIPLAYER', {
       fontSize: `${window.getResponsiveFontSize(26)}px`,
@@ -245,7 +246,7 @@ export class ModeSelectionScene extends Phaser.Scene {
       align: 'center',
       fontStyle: 'bold'
     }).setOrigin(0.5, 0.5).setDepth(200)
-    
+
     // Button description
     const buttonDesc = this.add.text(screenWidth / 2, buttonY + 50, 'Play online with different devices!', {
       fontSize: `${window.getResponsiveFontSize(16)}px`,
@@ -255,10 +256,10 @@ export class ModeSelectionScene extends Phaser.Scene {
       strokeThickness: this.isMobile ? 4 : 3,
       align: 'center'
     }).setOrigin(0.5, 0.5).setDepth(200)
-    
+
     // Store references
     this.onlineMultiPlayerButton = { bg: buttonBg, text: buttonText, desc: buttonDesc, zone: buttonZone }
-    
+
     // Interactions
     buttonZone.on('pointerover', () => {
       buttonBg.clear()
@@ -266,7 +267,7 @@ export class ModeSelectionScene extends Phaser.Scene {
       buttonBg.fillRoundedRect(screenWidth / 2 - 200, buttonY - 40, 400, 80, 15)
       buttonBg.lineStyle(4, 0xFFFFFF, 1)
       buttonBg.strokeRoundedRect(screenWidth / 2 - 200, buttonY - 40, 400, 80, 15)
-      
+
       this.tweens.add({
         targets: buttonText,
         scaleX: 1.1,
@@ -275,14 +276,14 @@ export class ModeSelectionScene extends Phaser.Scene {
         ease: 'Back.easeOut'
       })
     })
-    
+
     buttonZone.on('pointerout', () => {
       buttonBg.clear()
       buttonBg.fillGradientStyle(0xFF8C00, 0xFF8C00, 0xFFA500, 0xFFA500, 0.95)
       buttonBg.fillRoundedRect(screenWidth / 2 - 200, buttonY - 40, 400, 80, 15)
       buttonBg.lineStyle(4, 0xFFFFFF, 0.9)
       buttonBg.strokeRoundedRect(screenWidth / 2 - 200, buttonY - 40, 400, 80, 15)
-      
+
       this.tweens.add({
         targets: buttonText,
         scaleX: 1,
@@ -291,21 +292,113 @@ export class ModeSelectionScene extends Phaser.Scene {
         ease: 'Back.easeOut'
       })
     })
-    
+
     buttonZone.on('pointerdown', () => {
       buttonText.setScale(0.95)
     })
-    
+
     buttonZone.on('pointerup', () => {
       buttonText.setScale(1.1)
       this.sound.play('ui_click', { volume: audioConfig.sfxVolume.value })
-      
+
       // Stop music before starting lobby
       if (this.backgroundMusic && this.backgroundMusic.isPlaying) {
         this.backgroundMusic.stop()
       }
-      
+
       this.scene.start('OnlineLobbyScene')
+    })
+  }
+
+  createProfileButton() {
+    const screenWidth = this.cameras.main.width
+    const screenHeight = this.cameras.main.height
+
+    const buttonY = screenHeight * 0.70
+
+    // Button background - blue for profile
+    const buttonBg = this.add.graphics()
+    buttonBg.fillGradientStyle(0x4169E1, 0x4169E1, 0x6495ED, 0x6495ED, 0.95)
+    buttonBg.fillRoundedRect(screenWidth / 2 - 200, buttonY - 40, 400, 80, 15)
+    buttonBg.lineStyle(4, 0xFFFFFF, 0.9)
+    buttonBg.strokeRoundedRect(screenWidth / 2 - 200, buttonY - 40, 400, 80, 15)
+    buttonBg.setDepth(100)
+
+    // Create interaction zone
+    const buttonZone = this.add.zone(screenWidth / 2, buttonY, 400, 80).setInteractive()
+    buttonZone.setDepth(101)
+
+    // Button text
+    const buttonText = this.add.text(screenWidth / 2, buttonY, '👤 PLAYER PROFILE', {
+      fontSize: `${window.getResponsiveFontSize(28)}px`,
+      fontFamily: window.getGameFont(),
+      color: '#FFFFFF',
+      stroke: '#000000',
+      strokeThickness: this.isMobile ? 7 : 5,
+      align: 'center',
+      fontStyle: 'bold'
+    }).setOrigin(0.5, 0.5).setDepth(200)
+
+    // Button description
+    const buttonDesc = this.add.text(screenWidth / 2, buttonY + 50, 'View your game statistics!', {
+      fontSize: `${window.getResponsiveFontSize(16)}px`,
+      fontFamily: window.getGameFont(),
+      color: '#FFFFFF',
+      stroke: '#000000',
+      strokeThickness: this.isMobile ? 4 : 3,
+      align: 'center'
+    }).setOrigin(0.5, 0.5).setDepth(200)
+
+    // Store references
+    this.profileButton = { bg: buttonBg, text: buttonText, desc: buttonDesc, zone: buttonZone }
+
+    // Interactions
+    buttonZone.on('pointerover', () => {
+      buttonBg.clear()
+      buttonBg.fillGradientStyle(0x6495ED, 0x6495ED, 0x87CEEB, 0x87CEEB, 1)
+      buttonBg.fillRoundedRect(screenWidth / 2 - 200, buttonY - 40, 400, 80, 15)
+      buttonBg.lineStyle(4, 0xFFFFFF, 1)
+      buttonBg.strokeRoundedRect(screenWidth / 2 - 200, buttonY - 40, 400, 80, 15)
+
+      this.tweens.add({
+        targets: buttonText,
+        scaleX: 1.1,
+        scaleY: 1.1,
+        duration: 100,
+        ease: 'Back.easeOut'
+      })
+    })
+
+    buttonZone.on('pointerout', () => {
+      buttonBg.clear()
+      buttonBg.fillGradientStyle(0x4169E1, 0x4169E1, 0x6495ED, 0x6495ED, 0.95)
+      buttonBg.fillRoundedRect(screenWidth / 2 - 200, buttonY - 40, 400, 80, 15)
+      buttonBg.lineStyle(4, 0xFFFFFF, 0.9)
+      buttonBg.strokeRoundedRect(screenWidth / 2 - 200, buttonY - 40, 400, 80, 15)
+
+      this.tweens.add({
+        targets: buttonText,
+        scaleX: 1,
+        scaleY: 1,
+        duration: 100,
+        ease: 'Back.easeOut'
+      })
+    })
+
+    buttonZone.on('pointerdown', () => {
+      buttonText.setScale(0.95)
+    })
+
+    buttonZone.on('pointerup', () => {
+      buttonText.setScale(1.1)
+      this.sound.play('ui_click', { volume: audioConfig.sfxVolume.value })
+
+      // Stop music before opening profile
+      if (this.backgroundMusic && this.backgroundMusic.isPlaying) {
+        this.backgroundMusic.stop()
+      }
+
+      this.scene.start('PlayerProfileScene')
     })
   }
 
@@ -354,8 +447,8 @@ export class ModeSelectionScene extends Phaser.Scene {
   createSettingsButton() {
     const screenWidth = this.cameras.main.width
     const screenHeight = this.cameras.main.height
-    
-    const buttonY = screenHeight * 0.75
+
+    const buttonY = screenHeight * 0.85
     
     // Button background - pink/purple for settings
     const buttonBg = this.add.graphics()

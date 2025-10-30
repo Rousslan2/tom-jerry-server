@@ -172,7 +172,6 @@ export class TitleScene extends Phaser.Scene {
   createUI() {
     this.createGameTitle()
     this.createStartButton()
-    this.createProfileButton()
   }
 
   createGameTitle() {
