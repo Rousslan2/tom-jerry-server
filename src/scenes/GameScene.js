@@ -43,6 +43,10 @@ export class GameScene extends Phaser.Scene {
     this.comboTimer = null
     this.comboResetDelay = 2000 // Reset combo after 2 seconds of no elimination
     this.lastEliminationTime = 0
+
+    // 💡 Hint System - Limited to 3 hints per game
+    this.hintsUsed = 0
+    this.maxHints = 3
     
     // Opponent stats (for online mode)
     this.opponentStats = {
@@ -927,7 +931,7 @@ export class GameScene extends Phaser.Scene {
 
     this.hintButtonBg.setInteractive(new Phaser.Geom.Rectangle(screenWidth - 120, 160, 100, 45), Phaser.Geom.Rectangle.Contains)
 
-    this.hintButtonText = this.add.text(screenWidth - 70, 182, '💡 HINT', {
+    this.hintButtonText = this.add.text(screenWidth - 70, 182, `💡 HINT (${this.maxHints})`, {
       fontSize: `${window.getResponsiveFontSize(16)}px`,
       fontFamily: window.getGameFont(),
       color: '#FFFFFF',
@@ -969,6 +973,13 @@ export class GameScene extends Phaser.Scene {
       this.hintButtonText.setScale(1.1)
       this.hintButtonText.setTint(0xFFFF88)
       this.sound.play('ui_click', { volume: audioConfig.sfxVolume.value })
+
+      // Check if hints are available
+      if (this.hintsUsed >= this.maxHints) {
+        this.showNoMoreHintsMessage()
+        return
+      }
+
       this.showHint()
     })
   }
@@ -3185,12 +3196,12 @@ export class GameScene extends Phaser.Scene {
     const rows = gameConfig.gridRows.value
     const cols = gameConfig.gridCols.value
 
-    // Look for slots with 2 same items that can be completed
+    // Look for slots with exactly 2 same items that can be completed to 3
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         const gridCell = this.gridData[row][col]
 
-        // Count items by type in this slot
+        // Count items by type in this slot (only non-obstacle items)
         const typeCounts = {}
         gridCell.positions.forEach((itemType, index) => {
           if (itemType && itemType !== 'anvil_obstacle' && itemType !== 'safe_obstacle' && itemType !== 'piano_obstacle') {
@@ -3198,13 +3209,15 @@ export class GameScene extends Phaser.Scene {
           }
         })
 
-        // If we have 2 of same type, check if we can complete the match
+        // If we have exactly 2 of same type (and one empty spot), check if we can complete the match
         for (let itemType in typeCounts) {
           if (typeCounts[itemType] === 2) {
             // Check if this item type exists elsewhere on the board
             if (this.itemExistsOnBoard(itemType, row, col)) {
               // Found a hint! Highlight the slot with 2 items
               this.highlightHintSlot(row, col, itemType)
+              this.hintsUsed++ // Increment hint counter
+              this.updateHintButtonText() // Update button text
               return // Show only one hint at a time
             }
           }
@@ -3301,6 +3314,69 @@ export class GameScene extends Phaser.Scene {
         })
       }
     })
+  }
+
+  // ❌ Show message when no more hints available
+  showNoMoreHintsMessage() {
+    const screenWidth = this.cameras.main.width
+    const screenHeight = this.cameras.main.height
+
+    const noMoreHintsText = this.add.text(screenWidth / 2, screenHeight / 2 - 100, `❌ No more hints!\n(${this.hintsUsed}/${this.maxHints} used)`, {
+      fontSize: `${window.getResponsiveFontSize(24)}px`,
+      fontFamily: window.getGameFont(),
+      color: '#FF6347',
+      stroke: '#000000',
+      strokeThickness: 4,
+      align: 'center',
+      fontStyle: 'bold'
+    }).setOrigin(0.5, 0.5)
+      .setDepth(10001)
+      .setAlpha(0)
+      .setScale(0)
+
+    // Pop in animation
+    this.tweens.add({
+      targets: noMoreHintsText,
+      alpha: 1,
+      scale: 1.2,
+      duration: 300,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        // Stay for 2 seconds
+        this.time.delayedCall(2000, () => {
+          this.tweens.add({
+            targets: noMoreHintsText,
+            alpha: 0,
+            scale: 0.5,
+            duration: 300,
+            ease: 'Back.easeIn',
+            onComplete: () => {
+              noMoreHintsText.destroy()
+            }
+          })
+        })
+      }
+    })
+
+    // Play different sound for no more hints
+    this.sound.play('ui_click', { volume: audioConfig.sfxVolume.value * 0.3 })
+  }
+
+  // 🔄 Update hint button text to show remaining hints
+  updateHintButtonText() {
+    if (this.hintButtonText) {
+      const remainingHints = this.maxHints - this.hintsUsed
+      this.hintButtonText.setText(`💡 HINT (${remainingHints})`)
+
+      // Change color when hints are running low
+      if (remainingHints === 0) {
+        this.hintButtonText.setColor('#FF6347') // Red when no hints left
+      } else if (remainingHints === 1) {
+        this.hintButtonText.setColor('#FFA500') // Orange when 1 hint left
+      } else {
+        this.hintButtonText.setColor('#FFFFFF') // White normally
+      }
+    }
   }
 
   // 😔 Show message when no hints available
