@@ -15,17 +15,17 @@ export class GameScene extends Phaser.Scene {
     // Game mode
     this.gameMode = 'single' // 'single' or 'online'
     this.isHost = false
-
+    
     // 🎮 NEW: Game mode type (classic, time_attack, endless, zen, rush)
     this.selectedGameMode = 'classic'
-
+    
     // 🎯 NOTE: Random targets will be generated AFTER gameMode is set in init()
-
+    
     // Game state
     this.gameOver = false
     this.levelComplete = false
     this.currentMoves = 0
-
+    
     // ⏱️ NEW: Timer for Time Attack mode
     this.gameTimer = null
     this.timeRemaining = 120 // 2 minutes in seconds
@@ -33,18 +33,15 @@ export class GameScene extends Phaser.Scene {
     // ⚡ NEW: Rush mode timer (starts at 30 seconds, gain time by playing fast!)
     this.rushTimeRemaining = 30 // Start with 30 seconds
     this.lastEliminationTime = 0 // Track time between eliminations
-
-    // 🎪 Tom event flag to prevent multiple events
-    this.tomEventRunning = false
-
+    
     // Grid system
     this.gridData = []
     this.gridSlots = []
-
+    
     // Drag system
     this.selectedItem = null
     this.isDragging = false
-
+    
     // ⭐ NEW: Score & Combo System
     this.score = 0
     this.combo = 0
@@ -55,7 +52,7 @@ export class GameScene extends Phaser.Scene {
     // 💡 Hint System - Limited to 3 hints per game
     this.hintsUsed = 0
     this.maxHints = 3
-
+    
     // Opponent stats (for online mode)
     this.opponentStats = {
       'milk_box': 0,
@@ -1499,27 +1496,39 @@ export class GameScene extends Phaser.Scene {
     const minDelay = gameConfig.tomEventFirstDelayMin.value * 1000
     const maxDelay = gameConfig.tomEventFirstDelayMax.value * 1000
     const initialDelay = Phaser.Math.Between(minDelay, maxDelay)
-
+    
     console.log(`🎪 First Tom event will happen in ${initialDelay / 1000} seconds`)
-
+    
     this.time.delayedCall(initialDelay, () => {
       this.triggerRandomTomEvent()
+      
+      // Then trigger Tom events at regular intervals (configurable)
+      const minInterval = gameConfig.tomEventIntervalMin.value * 1000
+      const maxInterval = gameConfig.tomEventIntervalMax.value * 1000
+      
+      this.tomEventTimer = this.time.addEvent({
+        delay: Phaser.Math.Between(minInterval, maxInterval),
+        callback: () => {
+          this.triggerRandomTomEvent()
+          // Randomize next event interval
+          this.tomEventTimer.delay = Phaser.Math.Between(minInterval, maxInterval)
+          console.log(`⏰ Next Tom event in ${this.tomEventTimer.delay / 1000} seconds`)
+        },
+        loop: true
+      })
     })
   }
   
   // 🎲 Trigger a random Tom event
   triggerRandomTomEvent() {
-    // Don't trigger events if game is over or if an event is already running
-    if (this.gameOver || this.levelComplete || this.tomEventRunning) {
+    // Don't trigger events if game is over
+    if (this.gameOver || this.levelComplete) {
       return
     }
-
-    // Set flag to prevent multiple events
-    this.tomEventRunning = true
-
+    
     // Random event selection with weighted probabilities
     const randomValue = Math.random() * 100
-
+    
     if (randomValue < 50) {
       // 50% - Tom & Jerry chase (most fun, non-disruptive)
       this.tomJerryChaseEvent()
@@ -1530,28 +1539,25 @@ export class GameScene extends Phaser.Scene {
       // 25% - Tom shakes screen
       this.tomShakesScreenEvent()
     }
-
-    // Keep flag set to prevent any more Tom events in this game
-    // Only one Tom event per game session
   }
   
   // 🏃 Event 1: Tom chases Jerry across the screen
   tomJerryChaseEvent() {
     console.log('🏃 Tom & Jerry chase event!')
-
+    
     const screenWidth = this.cameras.main.width
     const screenHeight = this.cameras.main.height
-
+    
     // Random vertical position
     const yPosition = Phaser.Math.Between(screenHeight * 0.3, screenHeight * 0.7)
-
+    
     // 🎬 Create Jerry with animation!
     const jerry = this.animManager.createAnimatedSprite(-150, yPosition, 'jerry_running_scared', 'jerry_run', 0.15)
     jerry.setDepth(10000)
-
+    
     // Apply high quality rendering
     this.applyHighQualityRendering(jerry)
-
+    
     // Jerry runs across screen
     this.tweens.add({
       targets: jerry,
@@ -1560,19 +1566,19 @@ export class GameScene extends Phaser.Scene {
       ease: 'Linear',
       onComplete: () => jerry.destroy()
     })
-
+    
     // Play whoosh sound
     this.sound.play('whoosh_fast', { volume: audioConfig.sfxVolume.value })
-
+    
     // Tom chases 400ms later
     this.time.delayedCall(400, () => {
       // 🎬 Create Tom with animation!
       const tom = this.animManager.createAnimatedSprite(-150, yPosition, 'tom_chasing_jerry', 'tom_chase', 0.15)
       tom.setDepth(10000)
-
+      
       // Apply high quality rendering
       this.applyHighQualityRendering(tom)
-
+      
       this.tweens.add({
         targets: tom,
         x: screenWidth + 150,
@@ -1580,7 +1586,7 @@ export class GameScene extends Phaser.Scene {
         ease: 'Linear',
         onComplete: () => tom.destroy()
       })
-
+      
       // Play running sound and Tom's laugh
       this.sound.play('tom_running_footsteps', { volume: audioConfig.sfxVolume.value * 0.7 })
 
@@ -1595,14 +1601,16 @@ export class GameScene extends Phaser.Scene {
   // 💨 Create dust trail effect
   createDustTrail(yPosition) {
     const screenWidth = this.cameras.main.width
-
+    
     for (let i = 0; i < 5; i++) {
       this.time.delayedCall(i * 500, () => {
         const dust = this.add.image(i * 200, yPosition + 20, 'dust_cloud')
           .setDepth(9999)
           .setScale(0.08)
           .setAlpha(0.6)
-
+          .setTint(0xFFFFFF) // Ensure visible
+          .setTint(0xFFFFFF) // Ensure visible
+        
         this.tweens.add({
           targets: dust,
           alpha: 0,
@@ -1618,16 +1626,16 @@ export class GameScene extends Phaser.Scene {
   // 🎬 Event 2: Tom drops obstacles from the sky
   tomDropsObstaclesEvent() {
     console.log('🎬 Tom drops obstacles event!')
-
+    
     const screenWidth = this.cameras.main.width
-
+    
     // 🎬 Tom appears at top with sack (with animation!)
     const tom = this.animManager.createAnimatedSprite(screenWidth / 2, -150, 'tom_carrying_sack', 'tom_carry', 0.2)
     tom.setDepth(10000)
-
+    
     // Apply high quality rendering
     this.applyHighQualityRendering(tom)
-
+    
     // Tom slides down
     this.tweens.add({
       targets: tom,
@@ -1635,18 +1643,18 @@ export class GameScene extends Phaser.Scene {
       duration: 800,
       ease: 'Bounce.easeOut'
     })
-
+    
     // Tom evil laugh
     this.time.delayedCall(500, () => {
       this.sound.play('tom_evil_laugh', { volume: audioConfig.sfxVolume.value })
     })
-
+    
     // Tom trips and falls after 1.5 seconds
     this.time.delayedCall(1500, () => {
       // 🎬 Play tripping animation!
       this.animManager.playAnimation(tom, 'tom_trip')
       tom.setRotation(-0.3)
-
+      
       // Tom falls out of screen
       this.tweens.add({
         targets: tom,
@@ -1656,12 +1664,12 @@ export class GameScene extends Phaser.Scene {
         ease: 'Cubic.easeIn',
         onComplete: () => tom.destroy()
       })
-
+      
       // Play crash sound
       this.time.delayedCall(800, () => {
         this.sound.play('tom_crash_fall', { volume: audioConfig.sfxVolume.value })
       })
-
+      
       // Drop 2-3 obstacles while falling
       const obstacleCount = Phaser.Math.Between(2, 3)
       for (let i = 0; i < obstacleCount; i++) {
