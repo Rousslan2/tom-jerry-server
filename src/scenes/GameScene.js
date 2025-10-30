@@ -2380,47 +2380,47 @@ export class GameScene extends Phaser.Scene {
   eliminateItems(row, col, itemType) {
     const gridCell = this.gridData[row][col]
     const slot = this.gridSlots[row][col]
-    
+
     // 🛡️ PREVENT DOUBLE ELIMINATION - Check if already eliminating
     if (gridCell.isEliminating) {
       console.log(`⚠️ Skip (${row},${col}) - Already eliminating!`)
       return
     }
-    
+
     // Mark as eliminating
     gridCell.isEliminating = true
-    
+
     // ⭐ NEW: Combo system logic
     const currentTime = this.time.now
     const timeSinceLastElimination = currentTime - this.lastEliminationTime
-    
+
     // If less than 2 seconds since last elimination, increment combo
     if (timeSinceLastElimination < this.comboResetDelay && this.combo > 0) {
       this.combo++
     } else {
       this.combo = 1 // Reset to 1 (first elimination)
     }
-    
+
     this.lastEliminationTime = currentTime
-    
+
     // Clear existing timer and create new one
     if (this.comboTimer) {
       this.comboTimer.remove()
     }
-    
+
     this.comboTimer = this.time.delayedCall(this.comboResetDelay, () => {
       this.combo = 0 // Reset combo after delay
     })
-    
+
     // ⭐ Calculate score based on combo
     const basePoints = 100
     const comboMultiplier = this.combo
     const earnedPoints = basePoints * comboMultiplier
     this.score += earnedPoints
-    
+
     // Update score display
     this.updateScoreDisplay()
-    
+
     // ⭐ Play appropriate sound based on combo level - NEW SOUNDS! 🎵
     if (this.combo >= 5) {
       this.sound.play('combo_mega', { volume: audioConfig.sfxVolume.value })
@@ -2431,63 +2431,75 @@ export class GameScene extends Phaser.Scene {
     } else {
       this.sound.play('match_eliminate', { volume: audioConfig.sfxVolume.value })
     }
-    
+
     // Also play score gain sound for extra satisfaction! 💰
     this.time.delayedCall(150, () => {
       this.sound.play('score_gain', { volume: audioConfig.sfxVolume.value * 0.5 })
     })
-    
+
     // Update elimination count
     const amountToAdd = gameConfig.maxItemsPerSlot.value
     const oldCount = this.eliminatedCounts[itemType] || 0
     this.eliminatedCounts[itemType] = oldCount + amountToAdd
     const newCount = this.eliminatedCounts[itemType]
-    
+
     console.log(`📊 Eliminated ${itemType}: ${oldCount} → ${newCount} (+${amountToAdd})`)
     console.log(`📊 All counts:`, JSON.stringify(this.eliminatedCounts, null, 2))
-    
+
     this.updateTargetDisplay()
-    
+
     // Send updated stats to opponent in online mode
     this.sendMyStatsToOpponent()
-    
+
     // Create cartoon-style elimination effect with combo display
     this.createCartoonEliminationEffect(slot.x, slot.y, itemType, earnedPoints)
-    
+
     // 🎬 Use AnimationManager for smooth elimination animations
     gridCell.items.forEach((item, index) => {
       this.time.delayedCall(index * 50, () => {
+        // Set high depth during elimination to prevent ghost overlaps
+        item.setDepth(300)
         this.animManager.animateItemEliminate(item)
       })
     })
 
-    // Clear slots and positions
-    gridCell.positions = [null, null, null]
-    gridCell.items = []
-    
-    // Update all position indicators
-    for (let i = 0; i < 3; i++) {
-      this.updatePositionIndicator(row, col, i, null)
-    }
-    
-    // 🚧 Check adjacent slots for obstacles to unlock
-    this.unlockAdjacentObstacles(row, col)
-    
-    // 🛡️ Reset eliminating flag after a short delay
-    this.time.delayedCall(100, () => {
-      gridCell.isEliminating = false
-    })
-    
-    // Delay restock
-    this.time.delayedCall(gameConfig.refillDelay.value, () => {
-      this.refillSlot(row, col)
+    // Clear slots and positions AFTER animations complete
+    this.time.delayedCall(400, () => {
+      // Double-check that items are actually destroyed before clearing data
+      gridCell.items.forEach(item => {
+        if (item && item.active) {
+          console.warn('⚠️ Item still active during cleanup, forcing destroy')
+          item.destroy()
+        }
+      })
 
-      // 🌊 CASCADE MODE: Trigger cascade effect after elimination and restock
-      if (this.selectedGameMode === 'cascade') {
-        this.time.delayedCall(300, () => {
-          this.triggerCascadeEffect(row, col)
-        })
+      gridCell.positions = [null, null, null]
+      gridCell.items = []
+
+      // Update all position indicators
+      for (let i = 0; i < 3; i++) {
+        this.updatePositionIndicator(row, col, i, null)
       }
+
+      // 🚧 Check adjacent slots for obstacles to unlock
+      this.unlockAdjacentObstacles(row, col)
+
+      // 🛡️ Reset eliminating flag after a short delay
+      this.time.delayedCall(100, () => {
+        gridCell.isEliminating = false
+      })
+
+      // Delay restock
+      this.time.delayedCall(gameConfig.refillDelay.value, () => {
+        this.refillSlot(row, col)
+
+        // 🌊 CASCADE MODE: Trigger cascade effect after elimination and restock
+        if (this.selectedGameMode === 'cascade') {
+          this.time.delayedCall(300, () => {
+            this.triggerCascadeEffect(row, col)
+          })
+        }
+      })
     })
   }
   
@@ -2794,11 +2806,20 @@ export class GameScene extends Phaser.Scene {
         itemType = this.getRandomItemType()
       }
 
-      this.addItemToSlot(row, col, itemType)
+      // 🌊 CASCADE MODE: Delay spawning new items to prevent overlap with falling items
+      if (this.selectedGameMode === 'cascade') {
+        this.time.delayedCall(i * 150, () => {
+          this.addItemToSlot(row, col, itemType)
+        })
+      } else {
+        this.addItemToSlot(row, col, itemType)
+      }
     }
 
     // 🔧 CRITICAL FIX: After refilling, check for matches in the newly filled slot
-    this.time.delayedCall(200, () => {
+    // 🌊 CASCADE MODE: Longer delay to account for staggered spawning
+    const checkDelay = this.selectedGameMode === 'cascade' ? 800 : 200
+    this.time.delayedCall(checkDelay, () => {
       if (!this.gameOver && !this.levelComplete) {
         this.checkForElimination(row, col)
       }
