@@ -4169,7 +4169,7 @@ export class GameScene extends Phaser.Scene {
       this.createWaterSplashEffects()
 
       // After cascade animation, check for new matches
-      this.time.delayedCall(1000, () => {
+      this.time.delayedCall(1200, () => {
         this.checkAllCellsForMatches()
       })
     } else {
