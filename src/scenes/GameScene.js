@@ -1544,20 +1544,20 @@ export class GameScene extends Phaser.Scene {
   // 🏃 Event 1: Tom chases Jerry across the screen
   tomJerryChaseEvent() {
     console.log('🏃 Tom & Jerry chase event!')
-    
+
     const screenWidth = this.cameras.main.width
     const screenHeight = this.cameras.main.height
-    
+
     // Random vertical position
     const yPosition = Phaser.Math.Between(screenHeight * 0.3, screenHeight * 0.7)
-    
+
     // 🎬 Create Jerry with animation!
     const jerry = this.animManager.createAnimatedSprite(-150, yPosition, 'jerry_running_scared', 'jerry_run', 0.15)
     jerry.setDepth(10000)
-    
+
     // Apply high quality rendering
     this.applyHighQualityRendering(jerry)
-    
+
     // Jerry runs across screen
     this.tweens.add({
       targets: jerry,
@@ -1566,19 +1566,19 @@ export class GameScene extends Phaser.Scene {
       ease: 'Linear',
       onComplete: () => jerry.destroy()
     })
-    
+
     // Play whoosh sound
     this.sound.play('whoosh_fast', { volume: audioConfig.sfxVolume.value })
-    
+
     // Tom chases 400ms later
     this.time.delayedCall(400, () => {
       // 🎬 Create Tom with animation!
       const tom = this.animManager.createAnimatedSprite(-150, yPosition, 'tom_chasing_jerry', 'tom_chase', 0.15)
       tom.setDepth(10000)
-      
+
       // Apply high quality rendering
       this.applyHighQualityRendering(tom)
-      
+
       this.tweens.add({
         targets: tom,
         x: screenWidth + 150,
@@ -1586,7 +1586,7 @@ export class GameScene extends Phaser.Scene {
         ease: 'Linear',
         onComplete: () => tom.destroy()
       })
-      
+
       // Play running sound and Tom's laugh
       this.sound.play('tom_running_footsteps', { volume: audioConfig.sfxVolume.value * 0.7 })
 
@@ -1601,16 +1601,14 @@ export class GameScene extends Phaser.Scene {
   // 💨 Create dust trail effect
   createDustTrail(yPosition) {
     const screenWidth = this.cameras.main.width
-    
+
     for (let i = 0; i < 5; i++) {
       this.time.delayedCall(i * 500, () => {
         const dust = this.add.image(i * 200, yPosition + 20, 'dust_cloud')
           .setDepth(9999)
           .setScale(0.08)
           .setAlpha(0.6)
-          .setTint(0xFFFFFF) // Ensure visible
-          .setTint(0xFFFFFF) // Ensure visible
-        
+
         this.tweens.add({
           targets: dust,
           alpha: 0,
@@ -1626,16 +1624,16 @@ export class GameScene extends Phaser.Scene {
   // 🎬 Event 2: Tom drops obstacles from the sky
   tomDropsObstaclesEvent() {
     console.log('🎬 Tom drops obstacles event!')
-    
+
     const screenWidth = this.cameras.main.width
-    
+
     // 🎬 Tom appears at top with sack (with animation!)
     const tom = this.animManager.createAnimatedSprite(screenWidth / 2, -150, 'tom_carrying_sack', 'tom_carry', 0.2)
     tom.setDepth(10000)
-    
+
     // Apply high quality rendering
     this.applyHighQualityRendering(tom)
-    
+
     // Tom slides down
     this.tweens.add({
       targets: tom,
@@ -1643,18 +1641,18 @@ export class GameScene extends Phaser.Scene {
       duration: 800,
       ease: 'Bounce.easeOut'
     })
-    
+
     // Tom evil laugh
     this.time.delayedCall(500, () => {
       this.sound.play('tom_evil_laugh', { volume: audioConfig.sfxVolume.value })
     })
-    
+
     // Tom trips and falls after 1.5 seconds
     this.time.delayedCall(1500, () => {
       // 🎬 Play tripping animation!
       this.animManager.playAnimation(tom, 'tom_trip')
       tom.setRotation(-0.3)
-      
+
       // Tom falls out of screen
       this.tweens.add({
         targets: tom,
@@ -1664,12 +1662,12 @@ export class GameScene extends Phaser.Scene {
         ease: 'Cubic.easeIn',
         onComplete: () => tom.destroy()
       })
-      
+
       // Play crash sound
       this.time.delayedCall(800, () => {
         this.sound.play('tom_crash_fall', { volume: audioConfig.sfxVolume.value })
       })
-      
+
       // Drop 2-3 obstacles while falling
       const obstacleCount = Phaser.Math.Between(2, 3)
       for (let i = 0; i < obstacleCount; i++) {
