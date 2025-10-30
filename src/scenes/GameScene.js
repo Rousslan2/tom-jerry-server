@@ -4645,7 +4645,9 @@ export class GameScene extends Phaser.Scene {
       moveCounter: 0,
       moveLimit: 10,
       bossMoveInterval: 5,
-      defeated: false
+      defeated: false,
+      battleTimer: null,
+      timeRemaining: 60 // 60 seconds for boss battle
     }
 
     // Epic boss battle music
@@ -4656,6 +4658,9 @@ export class GameScene extends Phaser.Scene {
 
     // Show boss battle UI
     this.createBossBattleUI()
+
+    // Start boss battle timer
+    this.startBossBattleTimer()
 
     // Screen shake and particles
     this.createBossBattleEffects()
@@ -4774,7 +4779,18 @@ export class GameScene extends Phaser.Scene {
     this.bossHealthBar.fillRoundedRect(screenWidth * 0.4 + 2, 12, screenWidth * 0.4 - 4, 26, 3)
     this.bossHealthBar.setDepth(2010)
 
-    this.bossHealthText = this.add.text(screenWidth * 0.6, 25, `👹 BOSS: ${this.bossBattle.adjacentEliminations}/${this.bossBattle.requiredEliminations}`, {
+    this.bossHealthText = this.add.text(screenWidth * 0.5, 25, `👹 BOSS: ${this.bossBattle.adjacentEliminations}/${this.bossBattle.requiredEliminations}`, {
+      fontSize: `${window.getResponsiveFontSize(16)}px`,
+      fontFamily: window.getGameFont(),
+      color: '#FFFFFF',
+      stroke: '#000000',
+      strokeThickness: 2,
+      align: 'center',
+      fontStyle: 'bold'
+    }).setOrigin(0.5, 0.5).setDepth(2020)
+
+    // Boss battle timer
+    this.bossTimerText = this.add.text(screenWidth * 0.8, 25, `⏰ ${this.bossBattle.timeRemaining}s`, {
       fontSize: `${window.getResponsiveFontSize(16)}px`,
       fontFamily: window.getGameFont(),
       color: '#FFFFFF',
@@ -4801,6 +4817,16 @@ export class GameScene extends Phaser.Scene {
 
     // Update text
     this.bossHealthText.setText(`👹 BOSS: ${this.bossBattle.adjacentEliminations}/${this.bossBattle.requiredEliminations}`)
+    this.bossTimerText.setText(`⏰ ${this.bossBattle.timeRemaining}s`)
+
+    // Color coding for timer
+    if (this.bossBattle.timeRemaining <= 10) {
+      this.bossTimerText.setColor('#FF0000') // Red - critical!
+    } else if (this.bossBattle.timeRemaining <= 20) {
+      this.bossTimerText.setColor('#FF6347') // Orange - warning
+    } else {
+      this.bossTimerText.setColor('#FFFFFF') // White - normal
+    }
   }
 
   // 👹 Play epic boss battle music
@@ -5020,10 +5046,6 @@ export class GameScene extends Phaser.Scene {
     if (this.bossBattle.adjacentEliminations >= this.bossBattle.requiredEliminations && !this.bossBattle.defeated) {
       this.defeatBoss()
     }
-    // Check if time's up
-    else if (this.bossBattle.moveCounter >= this.bossBattle.moveLimit) {
-      this.bossBattleTimeout()
-    }
   }
 
   // 👹 Check if elimination is adjacent to boss
@@ -5242,7 +5264,39 @@ export class GameScene extends Phaser.Scene {
     if (this.bossHealthBg) this.bossHealthBg.destroy()
     if (this.bossHealthBar) this.bossHealthBar.destroy()
     if (this.bossHealthText) this.bossHealthText.destroy()
+    if (this.bossTimerText) this.bossTimerText.destroy()
     if (this.bossOverlay) this.bossOverlay.destroy()
+  }
+
+  // 👹 Start boss battle timer
+  startBossBattleTimer() {
+    this.bossBattle.battleTimer = this.time.addEvent({
+      delay: 1000, // 1 second
+      callback: this.updateBossBattleTimer,
+      callbackScope: this,
+      loop: true
+    })
+  }
+
+  // 👹 Update boss battle timer
+  updateBossBattleTimer() {
+    if (!this.bossBattle.active || this.bossBattle.defeated) {
+      if (this.bossBattle.battleTimer) {
+        this.bossBattle.battleTimer.remove()
+        this.bossBattle.battleTimer = null
+      }
+      return
+    }
+
+    this.bossBattle.timeRemaining--
+
+    // Update UI
+    this.updateBossBattleUI()
+
+    // Time's up!
+    if (this.bossBattle.timeRemaining <= 0) {
+      this.bossBattleTimeout()
+    }
   }
 
   // 👹 Clear entire boss battle
@@ -5250,6 +5304,12 @@ export class GameScene extends Phaser.Scene {
     this.bossBattle.active = false
     this.clearBossBlocks()
     this.clearBossBattleUI()
+
+    // Stop battle timer
+    if (this.bossBattle.battleTimer) {
+      this.bossBattle.battleTimer.remove()
+      this.bossBattle.battleTimer = null
+    }
 
     if (this.bossBattle.boss && this.bossBattle.boss.active) {
       this.bossBattle.boss.destroy()
