@@ -1113,15 +1113,60 @@ export class GameScene extends Phaser.Scene {
     // Setup pause key (ESC or P)
     this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC)
     this.pKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.P)
-    
+
     this.escKey.on('down', () => {
       this.pauseGame()
     })
-    
+
     this.pKey.on('down', () => {
       this.pauseGame()
     })
-    
+
+    // Setup drag input
+    this.input.on('dragstart', (pointer, gameObject) => {
+      this.handleDragStart(pointer, gameObject)
+    })
+
+    // Add separate drag event handler
+    this.input.on('drag', (pointer, gameObject, dragX, dragY) => {
+      this.handleDrag(pointer, gameObject, dragX, dragY)
+    })
+
+    this.input.on('dragend', (pointer, gameObject) => {
+      this.handleDragEnd(pointer, gameObject)
+    })
+
+    this.input.on('drag', (pointer, gameObject, dragX, dragY) => {
+      gameObject.x = dragX
+      gameObject.y = dragY
+
+      // Update halo position
+      if (this.dragRing) {
+        this.dragRing.x = dragX
+        this.dragRing.y = dragY
+      }
+
+      // Highlight available slots
+      this.highlightAvailableSlots()
+    })
+
+    this.input.on('dragend', (pointer, gameObject) => {
+      // Clear drag effects
+      if (this.dragRing) {
+        this.tweens.killTweensOf(this.dragRing)
+        this.dragRing.destroy()
+        this.dragRing = null
+      }
+
+      this.handleItemDrop(gameObject, pointer)
+      this.selectedItem = null
+      this.isDragging = false
+
+      // Clear slot highlights
+      this.clearSlotHighlights()
+    })
+  }
+
   // Centralized drag event handlers
   handleDragStart(pointer, gameObject) {
     this.selectedItem = gameObject
@@ -1213,50 +1258,6 @@ export class GameScene extends Phaser.Scene {
 
     // Clear slot highlights
     this.clearSlotHighlights()
-  }
-    // Setup drag input
-    this.input.on('dragstart', (pointer, gameObject) => {
-      this.handleDragStart(pointer, gameObject)
-    })
-
-    // Add separate drag event handler
-    this.input.on('drag', (pointer, gameObject, dragX, dragY) => {
-      this.handleDrag(pointer, gameObject, dragX, dragY)
-    })
-
-    this.input.on('dragend', (pointer, gameObject) => {
-      this.handleDragEnd(pointer, gameObject)
-    })
-    
-    this.input.on('drag', (pointer, gameObject, dragX, dragY) => {
-      gameObject.x = dragX
-      gameObject.y = dragY
-      
-      // Update halo position
-      if (this.dragRing) {
-        this.dragRing.x = dragX
-        this.dragRing.y = dragY
-      }
-      
-      // Highlight available slots
-      this.highlightAvailableSlots()
-    })
-    
-    this.input.on('dragend', (pointer, gameObject) => {
-      // Clear drag effects
-      if (this.dragRing) {
-        this.tweens.killTweensOf(this.dragRing)
-        this.dragRing.destroy()
-        this.dragRing = null
-      }
-      
-      this.handleItemDrop(gameObject, pointer)
-      this.selectedItem = null
-      this.isDragging = false
-      
-      // Clear slot highlights
-      this.clearSlotHighlights()
-    })
   }
 
   populateInitialItems() {
