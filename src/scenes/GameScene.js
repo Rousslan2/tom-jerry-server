@@ -1407,19 +1407,6 @@ export class GameScene extends Phaser.Scene {
         }
       })
 
-      // Gentle floating animation
-      this.time.delayedCall(Phaser.Math.Between(500, 800), () => {
-        if (item && item.active) {
-          this.tweens.add({
-            targets: item,
-            y: item.y - 3,
-            duration: 800,
-            ease: 'Sine.easeInOut',
-            yoyo: true,
-            repeat: -1
-          })
-        }
-      })
     }
     
     // Store item information
