@@ -92,20 +92,16 @@ export class PlayerProfileScene extends Phaser.Scene {
   displayStats() {
     const screenWidth = this.cameras.main.width
     const startY = 180
-    const lineHeight = 35
+    const lineHeight = 45
     let currentY = startY
 
+    // Only show the 5 most important stats
     const stats = [
       { label: '🎮 Games Played:', value: this.playerStats.gamesPlayed },
       { label: '🏆 Games Won:', value: this.playerStats.gamesWon },
-      { label: '📈 Win Rate:', value: this.calculateWinRate() + '%' },
-      { label: '⭐ Total Score:', value: this.playerStats.totalScore.toLocaleString() },
       { label: '🎯 Best Score:', value: this.playerStats.bestScore.toLocaleString() },
       { label: '🔥 Best Combo:', value: this.playerStats.bestCombo },
-      { label: '💡 Hints Used:', value: this.playerStats.totalHintsUsed },
-      { label: '🆘 Tom Helps:', value: this.playerStats.totalTomHelps },
-      { label: '⏱️ Time Played:', value: this.formatPlayTime() },
-      { label: '🎪 Tom Events Seen:', value: this.playerStats.tomEventsSeen }
+      { label: '📈 Win Rate:', value: this.calculateWinRate() + '%' }
     ]
 
     this.statsTexts = []
@@ -113,7 +109,7 @@ export class PlayerProfileScene extends Phaser.Scene {
     stats.forEach((stat, index) => {
       // Label
       const labelText = this.add.text(80, currentY, stat.label, {
-        fontSize: `${window.getResponsiveFontSize(18)}px`,
+        fontSize: `${window.getResponsiveFontSize(22)}px`,
         fontFamily: window.getGameFont(),
         color: '#8B4513',
         stroke: '#DEB887',
@@ -123,7 +119,7 @@ export class PlayerProfileScene extends Phaser.Scene {
 
       // Value
       const valueText = this.add.text(screenWidth - 80, currentY, stat.value, {
-        fontSize: `${window.getResponsiveFontSize(18)}px`,
+        fontSize: `${window.getResponsiveFontSize(22)}px`,
         fontFamily: window.getGameFont(),
         color: '#4169E1',
         stroke: '#1E90FF',
@@ -133,49 +129,6 @@ export class PlayerProfileScene extends Phaser.Scene {
 
       this.statsTexts.push({ label: labelText, value: valueText })
       currentY += lineHeight
-    })
-
-    // Mode-specific stats
-    currentY += 20
-    this.add.text(screenWidth / 2, currentY, '🎯 MODE STATISTICS', {
-      fontSize: `${window.getResponsiveFontSize(22)}px`,
-      fontFamily: window.getGameFont(),
-      color: '#8B4513',
-      stroke: '#DEB887',
-      strokeThickness: 3,
-      align: 'center',
-      fontStyle: 'bold'
-    }).setOrigin(0.5, 0.5).setDepth(2000)
-
-    currentY += 40
-
-    const modeStats = [
-      { label: 'Classic Mode:', value: `${this.playerStats.classicGamesWon}/${this.playerStats.classicGamesPlayed}` },
-      { label: 'Time Attack:', value: `${this.playerStats.timeAttackGamesWon}/${this.playerStats.timeAttackGamesPlayed}` },
-      { label: 'Cascade Mode:', value: `${this.playerStats.cascadeGamesWon}/${this.playerStats.cascadeGamesPlayed}` },
-      { label: 'Zen Mode:', value: `${this.playerStats.zenGamesWon}/${this.playerStats.zenGamesPlayed}` }
-    ]
-
-    modeStats.forEach((stat, index) => {
-      const labelText = this.add.text(80, currentY, stat.label, {
-        fontSize: `${window.getResponsiveFontSize(16)}px`,
-        fontFamily: window.getGameFont(),
-        color: '#8B4513',
-        stroke: '#DEB887',
-        strokeThickness: 2
-      }).setOrigin(0, 0.5).setDepth(2000)
-
-      const valueText = this.add.text(screenWidth - 80, currentY, stat.value, {
-        fontSize: `${window.getResponsiveFontSize(16)}px`,
-        fontFamily: window.getGameFont(),
-        color: '#32CD32',
-        stroke: '#228B22',
-        strokeThickness: 2,
-        fontStyle: 'bold'
-      }).setOrigin(1, 0.5).setDepth(2000)
-
-      this.statsTexts.push({ label: labelText, value: valueText })
-      currentY += lineHeight - 5
     })
   }
 
@@ -244,23 +197,8 @@ export class PlayerProfileScene extends Phaser.Scene {
     const defaultStats = {
       gamesPlayed: 0,
       gamesWon: 0,
-      totalScore: 0,
       bestScore: 0,
-      bestCombo: 0,
-      totalHintsUsed: 0,
-      totalTomHelps: 0,
-      playTimeSeconds: 0,
-      tomEventsSeen: 0,
-      classicGamesPlayed: 0,
-      classicGamesWon: 0,
-      timeAttackGamesPlayed: 0,
-      timeAttackGamesWon: 0,
-      endlessGamesPlayed: 0,
-      endlessGamesWon: 0,
-      zenGamesPlayed: 0,
-      zenGamesWon: 0,
-      cascadeGamesPlayed: 0,
-      cascadeGamesWon: 0
+      bestCombo: 0
     }
 
     const savedStats = localStorage.getItem('playerStats')
@@ -282,16 +220,6 @@ export class PlayerProfileScene extends Phaser.Scene {
     return Math.round((this.playerStats.gamesWon / this.playerStats.gamesPlayed) * 100)
   }
 
-  formatPlayTime() {
-    const hours = Math.floor(this.playerStats.playTimeSeconds / 3600)
-    const minutes = Math.floor((this.playerStats.playTimeSeconds % 3600) / 60)
-
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`
-    } else {
-      return `${minutes}m`
-    }
-  }
 
   stopAllOtherMusic() {
     const allScenes = ['TitleScene', 'ModeSelectionScene', 'GameModeMenuScene', 'OnlineLobbyScene', 'GameScene']
