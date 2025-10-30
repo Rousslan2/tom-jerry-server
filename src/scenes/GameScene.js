@@ -4134,6 +4134,20 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    // 🌊 CASCADE MODE: Also check bottom row for items that should fall off screen
+    for (let c = 0; c < cols; c++) {
+      const bottomCell = this.gridData[rows - 1][c]
+
+      // Check each position in the bottom row
+      for (let pos = 0; pos < 3; pos++) {
+        if (bottomCell.positions[pos] !== null) {
+          // Items in bottom row with empty space below should fall off screen
+          this.makeItemFallOffScreen(rows - 1, c, pos)
+          cascadeTriggered = true
+        }
+      }
+    }
+
     if (cascadeTriggered) {
       console.log('🌊 Cascade effect triggered - items falling!')
       // Play cascade sound
@@ -4276,6 +4290,105 @@ export class GameScene extends Phaser.Scene {
          y: dropletY + 30,
          alpha: 0,
          duration: 600,
+         ease: 'Power2',
+         delay: i * 50,
+         onComplete: () => droplet.destroy()
+       })
+     }
+   }
+
+   // 🌊 Make an item fall off screen (bottom row cascade)
+   makeItemFallOffScreen(fromRow, fromCol, fromPosition) {
+     const item = this.gridData[fromRow][fromCol].items[fromPosition]
+     if (!item) return
+
+     // Remove from grid data
+     const oldGridCell = this.gridData[fromRow][fromCol]
+     oldGridCell.positions[fromPosition] = null
+     const itemIndex = oldGridCell.items.indexOf(item)
+     if (itemIndex > -1) {
+       oldGridCell.items.splice(itemIndex, 1)
+     }
+
+     // Update position indicator
+     this.updatePositionIndicator(fromRow, fromCol, fromPosition, null)
+
+     // Temporarily disable interactivity
+     const wasInteractive = item.input && item.input.enabled
+     if (wasInteractive) {
+       item.disableInteractive()
+     }
+
+     // Set high depth for falling animation
+     item.setDepth(200)
+
+     // Animate falling off screen with rotation
+     const screenHeight = this.cameras.main.height
+     this.tweens.add({
+       targets: item,
+       y: screenHeight + 100,
+       rotation: Math.PI * 4, // Multiple rotations
+       scale: 0.5,
+       alpha: 0,
+       duration: 800,
+       ease: 'Cubic.easeIn',
+       onComplete: () => {
+         // Destroy the item
+         item.destroy()
+         console.log(`🌊 Item fell off screen from (${fromRow},${fromCol})`)
+       }
+     })
+
+     // Create splash effect at bottom
+     this.createBottomSplashEffect(fromCol)
+   }
+
+   // 🌊 Create splash effect when items fall off bottom
+   createBottomSplashEffect(col) {
+     const screenWidth = this.cameras.main.width
+     const screenHeight = this.cameras.main.height
+
+     // Calculate position based on column
+     const colWidth = screenWidth / gameConfig.gridCols.value
+     const splashX = colWidth * col + colWidth / 2
+     const splashY = screenHeight - 50
+
+     // Create splash particles
+     for (let i = 0; i < 8; i++) {
+       const particle = this.add.graphics()
+       particle.fillStyle(0x87CEEB, 0.8) // Light blue
+       particle.fillCircle(0, 0, Phaser.Math.Between(4, 10))
+       particle.setPosition(splashX, splashY)
+       particle.setDepth(999)
+
+       const angle = (i / 8) * Math.PI + Phaser.Math.Between(-0.3, 0.3) // Upward arc
+       const distance = Phaser.Math.Between(30, 80)
+
+       this.tweens.add({
+         targets: particle,
+         x: splashX + Math.cos(angle) * distance,
+         y: splashY + Math.sin(angle) * distance,
+         alpha: 0,
+         scale: 0.3,
+         duration: Phaser.Math.Between(600, 1000),
+         ease: 'Power2',
+         delay: i * 20,
+         onComplete: () => particle.destroy()
+       })
+     }
+
+     // Add water droplets falling back down
+     for (let i = 0; i < 5; i++) {
+       const dropletX = splashX + Phaser.Math.Between(-20, 20)
+       const droplet = this.add.text(dropletX, splashY, '💧', {
+         fontSize: '12px'
+       }).setOrigin(0.5, 0.5).setDepth(1000)
+
+       this.tweens.add({
+         targets: droplet,
+         y: splashY + 50,
+         alpha: 0,
+         duration: 400,
          ease: 'Power2',
          delay: i * 50,
          onComplete: () => droplet.destroy()
