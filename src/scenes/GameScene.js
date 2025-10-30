@@ -4766,26 +4766,15 @@ export class GameScene extends Phaser.Scene {
     // Boss health bar (eliminations needed)
     this.bossHealthBg = this.add.graphics()
     this.bossHealthBg.fillStyle(0x333333, 0.8)
-    this.bossHealthBg.fillRoundedRect(screenWidth * 0.35, 10, screenWidth * 0.3, 30, 5)
+    this.bossHealthBg.fillRoundedRect(screenWidth * 0.4, 10, screenWidth * 0.4, 30, 5)
     this.bossHealthBg.setDepth(2000)
 
     this.bossHealthBar = this.add.graphics()
     this.bossHealthBar.fillStyle(0xFF0000, 1)
-    this.bossHealthBar.fillRoundedRect(screenWidth * 0.35 + 2, 12, screenWidth * 0.3 - 4, 26, 3)
+    this.bossHealthBar.fillRoundedRect(screenWidth * 0.4 + 2, 12, screenWidth * 0.4 - 4, 26, 3)
     this.bossHealthBar.setDepth(2010)
 
-    this.bossHealthText = this.add.text(screenWidth * 0.5, 25, `👹 BOSS: ${this.bossBattle.adjacentEliminations}/${this.bossBattle.requiredEliminations}`, {
-      fontSize: `${window.getResponsiveFontSize(16)}px`,
-      fontFamily: window.getGameFont(),
-      color: '#FFFFFF',
-      stroke: '#000000',
-      strokeThickness: 2,
-      align: 'center',
-      fontStyle: 'bold'
-    }).setOrigin(0.5, 0.5).setDepth(2020)
-
-    // Move counter for boss battle
-    this.bossMoveText = this.add.text(screenWidth * 0.8, 25, `⏰ Moves: ${this.bossBattle.moveCounter}/${this.bossBattle.moveLimit}`, {
+    this.bossHealthText = this.add.text(screenWidth * 0.6, 25, `👹 BOSS: ${this.bossBattle.adjacentEliminations}/${this.bossBattle.requiredEliminations}`, {
       fontSize: `${window.getResponsiveFontSize(16)}px`,
       fontFamily: window.getGameFont(),
       color: '#FFFFFF',
@@ -4804,15 +4793,14 @@ export class GameScene extends Phaser.Scene {
 
     // Update health bar
     const healthPercent = this.bossBattle.adjacentEliminations / this.bossBattle.requiredEliminations
-    const barWidth = (screenWidth * 0.3 - 4) * healthPercent
+    const barWidth = (screenWidth * 0.4 - 4) * healthPercent
 
     this.bossHealthBar.clear()
     this.bossHealthBar.fillStyle(0xFF0000, 1)
-    this.bossHealthBar.fillRoundedRect(screenWidth * 0.35 + 2, 12, barWidth, 26, 3)
+    this.bossHealthBar.fillRoundedRect(screenWidth * 0.4 + 2, 12, barWidth, 26, 3)
 
     // Update text
     this.bossHealthText.setText(`👹 BOSS: ${this.bossBattle.adjacentEliminations}/${this.bossBattle.requiredEliminations}`)
-    this.bossMoveText.setText(`⏰ Moves: ${this.bossBattle.moveCounter}/${this.bossBattle.moveLimit}`)
   }
 
   // 👹 Play epic boss battle music
@@ -5254,7 +5242,6 @@ export class GameScene extends Phaser.Scene {
     if (this.bossHealthBg) this.bossHealthBg.destroy()
     if (this.bossHealthBar) this.bossHealthBar.destroy()
     if (this.bossHealthText) this.bossHealthText.destroy()
-    if (this.bossMoveText) this.bossMoveText.destroy()
     if (this.bossOverlay) this.bossOverlay.destroy()
   }
 
